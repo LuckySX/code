@@ -1,0 +1,164 @@
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
+import qs from 'qs'
+import { Message, MessageBox } from 'element-ui'
+// import { UserModule } from '@/store/modules/user'
+
+const service: AxiosInstance = axios.create({
+  baseURL: process.env.VUE_APP_BASE_API, // url = base url + request url
+  timeout: 5000
+  // withCredentials: true // send cookies when cross-domain requests
+})
+
+const SUCCESS = 200
+const CancelToken = axios.CancelToken
+const source = CancelToken.source()
+type ElMessageOptions = 'success' | 'warning' | 'info' | 'error' | undefined
+
+const sendMessage = (msg: string, type: ElMessageOptions) => {
+  Message({
+    message: msg,
+    type,
+    duration: 2000
+  })
+}
+
+/**
+ * 返回结果数据接口格式
+ */
+interface ResponseData {
+  code: number
+  data: any
+  message: string
+}
+
+// Request interceptors
+service.interceptors.request.use(
+  config => {
+    // Add X-Access-Token header to every request, you can add other custom headers here
+    // if (UserModule.token) {
+    //   config.headers['X-Access-Token'] = UserModule.token
+    // }
+    return config
+  },
+  error => {
+    Promise.reject(error)
+  }
+)
+
+// Response interceptors
+service.interceptors.response.use(
+  (response: AxiosResponse) => {
+    const res = response.data as ResponseData
+    if (res.code !== SUCCESS) {
+      sendMessage(res.message, 'error')
+      if (res.code === 50008 || res.code === 50012 || res.code === 50014) {
+        MessageBox.confirm('你已被登出，可以取消继续留在该页面，或者重新登录', '确定登出', {
+          confirmButtonText: '重新登录',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }).then(() => {
+          //   UserModule.ResetToken()
+          location.reload() // To prevent bugs from vue-router
+        })
+      }
+      return Promise.reject(new Error(res.message || 'Error'))
+    } else {
+      sendMessage(res.message, 'success')
+      return response.data
+    }
+  },
+  error => {
+    if (error && error.response) {
+      switch (error.response.status) {
+        case 400:
+          error.message = '请求错误'
+          break
+        case 401:
+          error.message = '未授权，请登录'
+          break
+        case 403:
+          error.message = '拒绝访问'
+          break
+        case 404:
+          error.message = `请求地址出错: ${error.response.config.url}`
+          break
+        case 408:
+          error.message = '请求超时'
+          break
+        case 500:
+          error.message = '服务器内部错误'
+          break
+        case 501:
+          error.message = '服务未实现'
+          break
+        case 502:
+          error.message = '网关错误'
+          break
+        case 503:
+          error.message = '服务不可用'
+          break
+        case 504:
+          error.message = '网关超时'
+          break
+        case 505:
+          error.message = 'HTTP版本不受支持'
+          break
+        default:
+          break
+      }
+    }
+    sendMessage(error.message, 'error')
+    return Promise.reject(error)
+  }
+)
+
+type MethodType = 'post' | 'get' | 'delete' | 'put'
+
+/**
+ * 通用request封装
+ */
+const request = (method: MethodType, url: string, data: object | any, config = {}) => {
+  const options: AxiosRequestConfig = Object.assign({}, config, {
+    url,
+    method,
+    data
+  })
+  options.cancelToken = source.token
+  options.headers = options.headers || {}
+  return new Promise((resolve, reject) => {
+    service
+      .request(options)
+      .then(resp => {
+        resolve(resp.data)
+      })
+      .catch(res => {
+        if (axios.isCancel(res)) {
+          console.log('error', '请求中断')
+        }
+        reject(res)
+      })
+  })
+}
+
+export const http = {
+  get(url: string, config: AxiosRequestConfig = {}) {
+    return request('get', url, null, config)
+  },
+  delete(url: string, data: object | null, config: AxiosRequestConfig = {}) {
+    return request('delete', url, data, config)
+  },
+  post(url: string, data: object | any, config: AxiosRequestConfig = {}) {
+    if (!config.headers) {
+      config.headers = {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+      }
+    }
+    return request('post', url, qs.stringify(data), config)
+  },
+  put(url: string, data: object | null, config: AxiosRequestConfig = {}) {
+    config.headers = {
+      'Content-Type': 'application/json; charset=UTF-8'
+    }
+    return request('put', url, data, config)
+  }
+}

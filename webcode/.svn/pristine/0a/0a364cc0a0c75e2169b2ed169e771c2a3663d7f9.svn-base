@@ -1,0 +1,49 @@
+import { Module, MutationTree, ActionTree, ActionContext, GetterTree } from 'vuex'
+import { RootState } from './../store'
+
+export interface AppState {
+  isCollapse: boolean
+  name?: string
+}
+
+const appState: AppState = {
+  isCollapse: false,
+  name: ''
+}
+
+const mutations: MutationTree<AppState> = {
+  collapse(state: AppState) {
+    state.isCollapse = !state.isCollapse
+  },
+  appName(state: AppState, appinfo: any) {
+    state.name = appinfo.name
+  }
+}
+
+const actions: ActionTree<AppState, RootState> = {
+  /**
+   * 测试 设置App Name
+   * @param context
+   * @param param
+   */
+  setAppNameAction(context: ActionContext<AppState, RootState>, param: any) {
+    console.log(param)
+    context.commit('appName', param)
+  }
+}
+
+const getters: GetterTree<AppState, RootState> = {
+  getName(state: AppState) {
+    return state.name
+  }
+}
+
+const app: Module<AppState, RootState> = {
+  namespaced: true,
+  state: appState,
+  getters,
+  actions,
+  mutations
+}
+
+export default app

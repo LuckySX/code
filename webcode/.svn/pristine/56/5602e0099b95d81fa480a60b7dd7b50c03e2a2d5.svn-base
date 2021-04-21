@@ -1,0 +1,402 @@
+<!--
+ * @Author: fuping
+ * @Date: 2020-03-30 14:19:21
+ * @LastEditors: fuping
+ * @LastEditTime: 2020-05-06 11:59:38
+ * @Description: 
+ -->
+
+<template>
+  <div :class="flowOverview.main">
+    <div :class="flowOverview.topBox">
+      <div :class="flowOverview.tabBox" class="sz">
+        <el-tabs v-model="activeName" type="card" @tab-click="handleTabClick">
+          <el-tab-pane label="深圳" name="2"></el-tab-pane>
+          <el-tab-pane label="中国" name="1"></el-tab-pane>
+          <el-tab-pane label="世界" name="0"></el-tab-pane>
+        </el-tabs>
+      </div>
+      <div :class="flowOverview.itemsBox">
+        <div :class="flowOverview.itemsInfoBox">
+          <span>{{ time }}</span>
+          <div v-if="activeName === '2'" :class="flowOverview.itemsInfo">
+            <span>企业IP数：{{ totalInfo.dip || 0 }}个</span>
+            <span>总流量：{{ totalInfo.volume || 0 }}GB</span>
+            <span>用户IP数：{{ totalInfo.sipCnt || 0 }}</span>
+            <span>应用流量：{{ totalInfo.appVolume || 0 }}GB</span>
+          </div>
+        </div>
+        <div :class="flowOverview.itemsSubmitBox" v-if="activeName === '2'">
+          <el-select v-model="inputType" class="sz" placeholder="请选择输入类型" style="width: 100px; margin-right: 10px;" @change="handleChange">
+            <el-option v-for="item in filedOpt" :key="item.value" :label="item.label" :value="item.value"></el-option>
+          </el-select>
+          <el-input v-model="inputValue" :placeholder="placeholder" style="width: 160px;"></el-input>
+          <el-button type="primary" style="margin: 0 10px;" @click="handleQuery">查询</el-button>
+          <el-button type="primary" style="width: 110px" @click="handleJump">
+            进入重点资产
+          </el-button>
+        </div>
+      </div>
+      <div :class="flowOverview.mapBox">
+        <template v-if="activeName === '2'">
+          <BaseCharts :option="mapOption" :theme="'vintage'"></BaseCharts>
+        </template>
+        <template v-else-if="activeName === '1'">
+          <BaseCharts :option="chinaOption" :theme="'vintage'"></BaseCharts>
+        </template>
+        <template v-else>
+          <BaseCharts :option="worldOption" :theme="'vintage'"></BaseCharts>
+        </template>
+      </div>
+    </div>
+    <div :class="flowOverview.bottomBox">
+      <div :class="flowOverview.chartBox">
+        <BorderBox title="用户访问 TOP 5" type="table">
+          <VTable :option="tableOptUser" :height="tableHeight"></VTable>
+          <!-- <TableOne :tableData="tableDataOne"></TableOne> -->
+        </BorderBox>
+      </div>
+      <div :class="flowOverview.chartBox">
+        <BorderBox title="应用流量 TOP 5" type="table">
+          <VTable :option="tableOptFlow" :height="tableHeight"></VTable>
+          <!-- <TableTwo :tableData="tableDataTwo"></TableTwo> -->
+        </BorderBox>
+      </div>
+      <div :class="flowOverview.chartBox">
+        <BorderBox title="运营商流量占比" type="pie">
+          <BaseCharts :option="pieOption" :theme="'vintage'"></BaseCharts>
+        </BorderBox>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script lang="ts">
+import { Component, Vue } from 'vue-property-decorator'
+import BorderBox from '@/components/Common/BorderBox.vue'
+import { scatterMapOption, doublePieOption } from '@/views/Common/charts/chartsOption'
+import { http } from '@/common/request'
+import dayjs from 'dayjs'
+import defaultsDeep from 'lodash/defaultsDeep'
+import trim from 'lodash/trim'
+import _ from 'lodash'
+interface IDefaultInputItems {
+  filed: string
+  value: string
+}
+interface IParams {
+  code: number
+  data: number[]
+  message: string
+}
+@Component({
+  components: {
+    BorderBox
+  }
+})
+export default class FlowOverview extends Vue {
+  private time: string = dayjs().format('YYYY年MM月DD日')
+  private inputType = 'dip'
+  private inputValue = ''
+  private activeName = '2'
+  private placeholder = '请输入IP地址'
+  private tableOptUser: any = {
+    stripe: true,
+    column: [
+      { name: '排名', value: 'orderNum', fixed: 'left', width: 50, align: 'center' },
+      { name: 'IP', value: 'dip', minWidth: 130, tooltip: true },
+      { name: '区/县', value: 'dipCounty', minWidth: 100, tooltip: true },
+      { name: '总流量(MB)', value: 'sumbytes', minWidth: 100, tooltip: true }
+    ],
+    data: [],
+    pagination: false,
+    pageOpt: {
+      currentPage: 1,
+      total: 0,
+      pageSizes: [10, 20, 30, 40, 50],
+      pageSize: 10
+    }
+  }
+  private tableOptFlow: any = {
+    stripe: true,
+    column: [
+      { name: '排名', value: 'orderNum', fixed: 'left', width: 50, align: 'center' },
+      { name: '应用名称', value: 'protocol', minWidth: 120, tooltip: true },
+      { name: '应用类型', value: 'protocolClass', minWidth: 100, tooltip: true },
+      { name: '总流量(MB)', value: 'sumbytes', minWidth: 100, tooltip: true }
+    ],
+    data: [],
+    pagination: false,
+    pageOpt: {
+      currentPage: 1,
+      total: 0,
+      pageSizes: [10, 20, 30, 40, 50],
+      pageSize: 10
+    }
+  }
+  private tableHeight = '100%'
+  private totalInfo = {
+    dip: 0,
+    sipCnt: 0,
+    appVolume: 0,
+    volume: 0
+  }
+  // 输入类型
+  private filedOpt = [
+    { label: 'IP', value: 'dip' },
+    { label: '域名', value: 'domain' },
+    { label: '单位', value: 'dip_company_name' } //后端命名，不能驼峰，数据库字段是带下划线的
+  ]
+  private placeHoderGroup = {
+    dip: '请输入IP地址',
+    domain: '请输入域名',
+    dipCompanyName: '请输入单位名称'
+  }
+  private chinaNewOption = {
+    tooltip: {
+      triggerOn: 'mousemove',
+      borderWidth: 1,
+      padding: [5, 10],
+      formatter: (data: any) => {
+        return `流量: ${data.data.volume}MB<br>
+              连接数: ${data.data.links}个`
+      }
+    },
+    geo: {
+      map: 'china',
+      aspectScale: 0.85,
+      zoom: 1
+    }
+  } as any
+  private worldNewOption = {
+    tooltip: {
+      triggerOn: 'mousemove',
+      borderWidth: 1,
+      padding: [5, 10],
+      formatter: (data: any) => {
+        return `流量: ${data.data.volume}MB<br>
+              连接数: ${data.data.links}个`
+      }
+    },
+    geo: {
+      map: 'world'
+    }
+  } as any
+  private mapOption: any = defaultsDeep(scatterMapOption)
+  private chinaOption: any = defaultsDeep(this.chinaNewOption, scatterMapOption)
+  private worldOption: any = defaultsDeep(this.worldNewOption, scatterMapOption)
+  private pieOption: any = defaultsDeep(doublePieOption)
+  mounted() {
+    this.init()
+  }
+  init() {
+    this.getInfoData()
+    this.getMapData()
+    this.getUserData()
+    this.getProtocolData()
+    this.getOperatorData()
+  }
+  initTabMap() {
+    this.getTabMapData()
+    this.getUserData()
+    this.getProtocolData()
+    this.getOperatorData()
+  }
+  handleQuery() {
+    this.inputValue = trim(this.inputValue)
+    // 输入框不能为空
+    if (this.inputValue != '') {
+      // 校验ip
+      if (this.inputType === 'dip') {
+        if (!this.isValidIP(this.inputValue)) {
+          this.$message({
+            message: '请输入正确的IP',
+            type: 'error'
+          })
+        } else {
+          this.getMapData()
+        }
+      } else {
+        this.getMapData()
+      }
+    } else {
+      this.$message({
+        message: '请输入查询内容',
+        type: 'warning'
+      })
+    }
+  }
+  getInfoData() {
+    interface IInterFlowTotalInfo {
+      dip: number
+      sipCnt: number
+      appVolume: number
+      volume: number
+    }
+    http.post<IInterFlowTotalInfo>('/netSecur-web/interFlow/totalInfo').then(resp => {
+      const { data } = resp
+      this.totalInfo = data
+    })
+  }
+  // 获取深圳地图数据
+  getMapData() {
+    type NewType = IDefaultInputItems
+    const params: NewType = {
+      filed: this.inputType,
+      value: this.inputValue
+    }
+    http.post<IParams>('/netSecur-web/interFlow/map', params).then((resp: any) => {
+      const { data } = resp
+      const mapData = data.map((i: any) => ({
+        name: i.dip,
+        companyId: i.dipCompanyId,
+        dipCompanyName: i.dipCompanyName,
+        value: [i.dipLongitude, i.dipLatitude],
+        dipUsed: i.dipUsed,
+        domain: i.domain,
+        segment: i.segment,
+        sipCnt: i.sipCnt,
+        volume: i.volume
+      }))
+      this.mapOption.series[0].data = mapData
+    })
+  }
+  // 获取中国世界地图数据
+  getTabMapData() {
+    http
+      .post<IParams>('/netSecur-web/interFlow/worldMap', { area: Number(this.activeName) })
+      .then((resp: any) => {
+        const { data } = resp
+        const mapData = data.map((i: any) => ({
+          value: [i.tLongitude, i.tLatitude],
+          volume: i.volume,
+          links: i.links
+        }))
+        if (this.activeName === '0') {
+          this.worldOption.series[0].data = mapData
+        } else {
+          this.chinaOption.series[0].data = mapData
+        }
+      })
+  }
+  // 获取用户访问TOP5数据
+  getUserData() {
+    http
+      .post<IParams>('/netSecur-web/interFlow/userTop', { area: Number(this.activeName) })
+      .then((resp: any) => {
+        const { data } = resp
+        this.tableOptUser.data = data
+      })
+  }
+  // 获取应用流量TOP5数据
+  getProtocolData() {
+    http
+      .post<IParams>('/netSecur-web/interFlow/protocolTop', { area: Number(this.activeName) })
+      .then((resp: any) => {
+        const { data } = resp
+        this.tableOptFlow.data = data
+      })
+  }
+  // 获取运营商流量占比数据
+  getOperatorData() {
+    interface IOperatorProtocol {
+      operators: any
+      protocols: any
+    }
+    http
+      .post<IOperatorProtocol>('/netSecur-web/interFlow/operatorProtocol', { area: Number(this.activeName) })
+      .then(resp => {
+        const {
+          data: { operators, protocols }
+        } = resp
+        this.pieOption.series[0].data = operators
+        this.pieOption.series[1].data = protocols
+        const legend1 = operators.map(v => v.name)
+        const legend2 = protocols.map(v => v.name)
+        this.pieOption.legend.data = [...legend1, ...legend2]
+      })
+  }
+  handleChange(v: string) {
+    if (v != 'dip' && v != 'domain') {
+      v = 'dipCompanyName'
+    }
+    this.placeholder = this.placeHoderGroup[v]
+    this.inputValue = ''
+  }
+  handleJump() {
+    this.$router.push({
+      path: '/KeyAsset',
+      query: {
+        type: this.inputType, // 下拉框类型
+        value: this.inputValue // 输入值
+      }
+    })
+  }
+  isValidIP(ip) {
+    const reg = /^(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])$/
+    return reg.test(ip)
+  }
+  handleTabClick(tab: any) {
+    this.activeName = tab.name
+    if (this.activeName != '2') {
+      this.initTabMap()
+    } else {
+      this.init()
+    }
+  }
+}
+</script>
+<style module="flowOverview">
+.main {
+  width: 100%;
+  height: 100%;
+  text-align: left;
+}
+.topBox {
+  position: relative;
+  height: calc(100% - 257px - 10px);
+  background: #fff;
+  margin-bottom: 10px;
+}
+.bottomBox {
+  height: 257px;
+  display: flex;
+  justify-content: space-between;
+}
+.itemsBox {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9;
+  background: rgba(255, 255, 255, 0.5);
+  padding: 5px 10px 2px;
+}
+.mapBox {
+  width: 100%;
+  height: 100%;
+}
+.itemsInfoBox span {
+  color: #666;
+  margin-right: 15px;
+}
+.chartBox {
+  flex: 1;
+  margin-right: 10px;
+}
+.chartBox:last-child {
+  margin-right: 0;
+}
+.tabBox {
+  position: absolute;
+  top: -30px;
+  right: 0;
+  z-index: 10;
+}
+.itemsInfo {
+  display: inline-block;
+}
+</style>

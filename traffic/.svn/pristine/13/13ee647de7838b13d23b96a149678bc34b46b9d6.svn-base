@@ -1,0 +1,54 @@
+<!--
+ * @Description: 
+ * @Autor: niumiaomiao
+ * @Date: 2020-03-31 19:59:29
+ * @LastEditors: niumiaomiao
+ * @LastEditTime: 2020-04-02 14:48:38
+ -->
+<template>
+  <div :class="webList.listBox">
+    <webContent :index="index" :data="data" :showButton="true" @showBig="showBig"></webContent>
+    <el-dialog :visible.sync="showDialog" width="95%" top="20px" :class="webList.dialogBox">
+      <div :style="dialogHeight()">
+        <webContent :index="index" :data="data" :showButton="false"></webContent>
+      </div>
+    </el-dialog>
+  </div>
+</template>
+
+<script lang="ts">
+import { Component, Vue, Prop } from 'vue-property-decorator'
+import webContent from './webContent.vue'
+@Component({
+  components: {
+    webContent
+  }
+})
+export default class WebList extends Vue {
+  // 返回的data对象
+  @Prop() private data: object
+  // 序号
+  @Prop() private index: number
+  private showDialog = false
+  private showBig(data: boolean) {
+    this.showDialog = data
+  }
+  dialogHeight() {
+    const winHeight: number = document.body.offsetHeight
+    const dialogHeight: number = winHeight - 150
+    return {
+      height: dialogHeight + 'px'
+    }
+  }
+}
+</script>
+
+<style module="webList">
+.listBox {
+  width: 100%;
+  height: 100%;
+}
+.dialogBox {
+  height: 95%;
+}
+</style>

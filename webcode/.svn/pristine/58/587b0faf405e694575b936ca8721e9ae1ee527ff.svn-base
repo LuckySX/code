@@ -1,0 +1,45 @@
+/*
+ * @Author: fuping
+ * @Date: 2020-03-30 14:21:00
+ * @LastEditTime: 2020-04-16 15:02:11
+ * @LastEditors: fuping
+ * @Description: In User Settings Edit
+ */
+
+export const interFlowConfig = [
+  {
+    path: '/FlowOverview',
+    name: '流量概览',
+    component: () => import('@/views/InterFlow/FlowOverview/index.vue')
+  },
+  {
+    path: '/KeyAsset',
+    name: '重点资产检测',
+    component: () => import('@/views/InterFlow/KeyAsset/index.vue')
+  },
+  {
+    path: '/TrafficTrend',
+    name: '重点网站流量趋势',
+    component: () => import('@/views/InterFlow/TrafficTrend/index.vue')
+  },
+  {
+    path: '/RegionStatistics',
+    name: '地域统计',
+    component: () => import('@/views/InterFlow/RegionStatistics/index.vue')
+  },
+  {
+    path: '/OperatorStatistics',
+    name: '运营商统计',
+    component: () => import('@/views/InterFlow/OperatorStatistics/index.vue')
+  },
+  {
+    path: '/ProtocolStatistics',
+    name: '应用统计',
+    component: () => import('@/views/InterFlow/ProtocolStatistics/index.vue')
+  },
+  {
+    path: '/UserStatistics',
+    name: '用户统计',
+    component: () => import('@/views/InterFlow/UserStatistics/index.vue')
+  }
+]

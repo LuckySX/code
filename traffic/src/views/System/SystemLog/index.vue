@@ -1,0 +1,337 @@
+<template>
+  <div :class="LogManage.container">
+    <BorderBox title="日志列表" type="table">
+      <div :class="LogManage.formBox">
+        <VForm :option="formOpt" ref="form"></VForm>
+      </div>
+      <div :class="LogManage.tableBox">
+        <VTable
+          :option="tableOpt"
+          :height="tableHeight"
+          ref="table"
+          @handleSelectionChange="handleSelectionChange"
+          @handleCurrentPageChange="handleCurrentChange"
+          @handleSizePageChange="handleSizeChange"
+        ></VTable>
+        <button v-if="isBtnShow" :class="LogManage.deleteBtn" @click="deleteBtn">删除</button>
+      </div>
+    </BorderBox>
+  </div>
+</template>
+
+<script lang="ts">
+import { Component, Vue, Ref } from 'vue-property-decorator'
+import BorderBox from '@/components/Common/BorderBox.vue'
+import { defaultsDeep, trim, assign } from 'lodash'
+import { getCookies } from '@/utils/cookiesUtil'
+import { getParmas } from '@/utils/assist'
+import { http } from '@/common/request'
+import dayjs from 'dayjs'
+const UrlExport = process.env.VUE_APP_BASE_API + '/userManage/excelExport'
+interface IDefaultTableItems {
+  startTime: string
+  endTime: string
+  operateType: string
+  username: string
+  systemName: string
+  sort: string
+  order: string
+  page: number
+  rows: number
+}
+interface ITable {
+  rows: number[]
+  total: number
+}
+// 导出，error提示没有数据不能导出，success可以导出
+enum exportFlag {
+  success = 1,
+  error = 0
+}
+@Component({
+  components: {
+    BorderBox
+  }
+})
+export default class LogManage extends Vue {
+  @Ref() readonly form!: VP.VForm
+  @Ref() readonly table!: VP.VTable
+  private multipleSelection: string
+  private isBtnShow = false
+  private exportType: exportFlag = exportFlag.error
+  // 表格接口参数
+  private tableParams: IDefaultTableItems = {
+    startTime: dayjs().format('YYYY-MM-DD'),
+    endTime: dayjs().format('YYYY-MM-DD'),
+    operateType: '',
+    username: '',
+    systemName: '',
+    sort: 'operate_time',
+    order: 'desc',
+    page: 1,
+    rows: 10
+  }
+  // 疑似攻击类型
+  private operateTypeOpt = [
+    { name: '全部', value: '' },
+    { name: '登陆', value: '登陆' },
+    { name: '访问', value: '访问' },
+    { name: '退出', value: '退出' },
+    { name: '删除', value: '删除' },
+    { name: '新建', value: '新建' },
+    { name: '上传', value: '上传' },
+    { name: '上报', value: '上报' },
+    { name: '导入', value: '导入' },
+    { name: '导出', value: '导出' },
+    { name: '启用', value: '启用' },
+    { name: '停用', value: '停用' },
+    { name: '审批', value: '审批' },
+    { name: '研判', value: '研判' },
+    { name: '修改', value: '修改' },
+    { name: '下载', value: '下载' }
+  ]
+  private formOpt: any = {
+    inline: true,
+    btnPos: 'left',
+    items: [
+      {
+        label: '开始时间：',
+        type: 'date',
+        comOpt: {
+          id: 'startTime',
+          clearable: false,
+          value: dayjs().format('YYYY-MM-DD'),
+          type: 'date',
+          disabled: false,
+          pickOptions: {
+            disabledDate: this.startDisable
+          }
+        }
+      },
+      {
+        label: '结束时间：',
+        type: 'date',
+        comOpt: {
+          id: 'endTime',
+          clearable: false,
+          value: this.tableParams.endTime,
+          type: 'date',
+          disabled: false,
+          pickOptions: {
+            disabledDate: this.endDisable
+          }
+        }
+      },
+      {
+        label: '操作类型：',
+        type: 'select',
+        comOpt: {
+          id: 'operateType',
+          value: '',
+          disabled: false,
+          placeholder: '请选择',
+          data: this.operateTypeOpt
+        }
+      },
+      {
+        label: '登录名称：',
+        type: 'text',
+        comOpt: {
+          id: 'username',
+          width: 120,
+          placeholder: '请输入'
+        }
+      }
+    ],
+    btns: [
+      {
+        comOpt: {
+          id: 'query',
+          value: '查询',
+          width: 90,
+          disabled: false,
+          click: this.handleQueryBtn
+        }
+      },
+      {
+        comOpt: {
+          id: 'reset',
+          value: '重置',
+          disabled: false,
+          click: this.handleResetBtn
+        }
+      },
+      {
+        comOpt: {
+          id: 'export',
+          value: '导出',
+          disabled: false,
+          click: this.handleExportBtn
+        }
+      }
+    ]
+  }
+  private tableOpt: any = {
+    stripe: true,
+    selection: true,
+    defaultSort: [{ prop: 'operate_time', order: 'descending' }],
+    sortMode: 'single',
+    sortChange: this.sortChange,
+    column: [
+      { name: '序号', value: 'orderNum', width: 55 },
+      { name: '登录名称', value: 'username', minWidth: 120, sortable: 'custom', tooltip: true },
+      { name: '真实姓名', value: 'fullname', minWidth: 120, sortable: 'custom', tooltip: true },
+      { name: '操作类型', value: 'operate_type', minWidth: 120, sortable: 'custom', tooltip: true },
+      { name: '操作内容', value: 'operate_content', minWidth: 200, sortable: 'custom', tooltip: true },
+      { name: '操作时间', value: 'operate_time', minWidth: 150, sortable: 'custom', tooltip: true }
+    ],
+    data: [],
+    pagination: true,
+    pageOpt: {
+      currentPage: 1,
+      total: 0,
+      pageSizes: [10, 20, 30, 40, 50],
+      pageSize: 10
+    }
+  }
+  private tableHeight = 'calc(100% - 42px)'
+  mounted() {
+    this.handleQueryBtn()
+  }
+  // 表格查询按钮
+  handleQueryBtn() {
+    assign(this.tableParams, this.form.getValue())
+    this.tableParams.username = trim(this.tableParams.username)
+    this.tableParams.page = 1
+    this.getTableData()
+  }
+  getTableData() {
+    http.post<ITable>('/userManage/selectBar', this.tableParams).then((resp: any) => {
+      const {
+        data: { rows, total, pageNo }
+      } = resp
+      if (rows.length > 0) {
+        this.exportType = exportFlag.success
+        this.isBtnShow = true
+      } else {
+        this.exportType = exportFlag.error
+      }
+      this.tableOpt.data = rows
+      this.tableOpt.pageOpt.total = total
+    })
+  }
+  // 表格重置按钮
+  handleResetBtn() {
+    this.form.clearValue()
+  }
+  // 排序
+  sortChange(column: object) {
+    const name: string = Object.keys(column)[0]
+    if (column[name] === 'descending') {
+      this.tableParams.order = 'desc'
+    } else {
+      this.tableParams.order = 'asc'
+    }
+    this.tableParams.sort = name
+    this.getTableData()
+  }
+  // 表格翻页
+  handleCurrentChange(page: number) {
+    this.tableParams.page = page
+    this.getTableData()
+  }
+  // 表格页码
+  handleSizeChange(val: number) {
+    this.tableParams.rows = val
+    this.tableParams.page = 1
+    this.tableOpt.pageOpt.currentPage = 1
+    this.getTableData()
+  }
+  // 根据结束时间联动，不能大于结束时间
+  startDisable(time: Date) {
+    const endDateVal = this.form.getValue().endTime
+    if (endDateVal) {
+      return time.getTime() > new Date(endDateVal).getTime()
+    }
+  }
+  // 根据开始时间联动，只能选择开始时间之前
+  endDisable(time: Date) {
+    const beginDateVal = this.form.getValue().startTime
+    if (beginDateVal) {
+      return time.getTime() < new Date(beginDateVal).getTime() - 1 * 24 * 60 * 60 * 1000
+    }
+  }
+  // 表格导出按钮
+  handleExportBtn() {
+    if (this.exportType === 0) {
+      this.$message({
+        message: '无数据',
+        type: 'warning'
+      })
+    } else {
+      window.location.href = `${UrlExport}?${getParmas(this.tableParams)}&type=1&eIp=${this.multipleSelection}&token=${getCookies('szCode')}`
+    }
+  }
+  // 表格多选
+  handleSelectionChange(val: any) {
+    const arr: any = []
+    val.forEach(v => {
+      arr.push(v.id)
+    })
+    this.multipleSelection = arr.toString()
+  }
+  // 选中删除
+  deleteBtn() {
+    this.$confirm('确定要删除选中的信息？', {
+      cancelButtonText: '取消',
+      confirmButtonText: '确定',
+      type: 'warning'
+    })
+      .then(() => {
+        http.post('/userManage/deleteRecord', { recordId: this.multipleSelection }).then((resp: any) => {
+          if (resp.data === true) {
+            this.$alert('删除成功！', {
+              confirmButtonText: '确定'
+            })
+            this.handleQueryBtn()
+          } else {
+            this.$message('删除失败！请重试或联系管理员。')
+            // this.$alert('删除失败！', {
+            //   confirmButtonText: '确定'
+            // })
+          }
+        })
+      })
+      .catch(() => {})
+  }
+}
+</script>
+<style module="LogManage">
+.container {
+  width: 100%;
+  height: 100%;
+}
+.tableBox {
+  position: relative;
+  width: 100%;
+  height: calc(100% - 40px);
+}
+.deleteBtn {
+  position: absolute;
+  bottom: 0;
+  right: 20px;
+  border: 1px solid #f56d6d;
+  background: #fff;
+  padding: 3px 10px;
+  color: #f56d6d;
+  font-size: 13px;
+  width: 80px;
+  box-sizing: border-box;
+  cursor: pointer;
+  outline: none;
+}
+.deleteBtn:hover {
+  background: #f56d6d;
+  color: #fff;
+}
+</style>

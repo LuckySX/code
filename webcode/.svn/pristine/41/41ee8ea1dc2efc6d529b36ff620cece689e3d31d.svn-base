@@ -1,0 +1,488 @@
+<!--
+ * @Author: fuping
+ * @Date: 2020-03-19 14:55:09
+ * @LastEditors: fuping
+ * @LastEditTime: 2020-04-08 18:45:10
+ * @Description: DDoS攻击事件概览
+ -->
+<template>
+  <div :class="overall.main">
+    <div :class="overall.dateBox">
+      <el-form :inline="true" :model="formItems" label-position="left" label-width="80px">
+        <el-form-item label="开始时间：">
+          <el-date-picker
+            v-model="formItems.beginTime"
+            type="date"
+            placeholder
+            align="right"
+            value-format="yyyy-MM-dd"
+            :picker-options="startPickerOptions"
+          ></el-date-picker>
+        </el-form-item>
+        <el-form-item label="结束时间：">
+          <el-date-picker
+            v-model="formItems.endTime"
+            type="date"
+            placeholder
+            align="right"
+            value-format="yyyy-MM-dd"
+            :picker-options="endPickerOptions"
+          ></el-date-picker>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="handleQueryBtn">查询</el-button>
+        </el-form-item>
+      </el-form>
+    </div>
+    <div :class="overall.contentBox">
+      <div :class="overall.chartPart">
+        <div :class="overall.chartBox">
+          <BorderBox title="被攻击IP TOP5" type="bar">
+            <BaseCharts
+              v-if="loadedBar"
+              :option="barOption"
+              :theme="'vintage'"
+              @handlerClick="handlerClickBar"
+            ></BaseCharts>
+          </BorderBox>
+        </div>
+        <div :class="overall.chartBox">
+          <BorderBox title="高峰攻击速率/ 连接数" type="scatter">
+            <BaseCharts
+              v-if="loadedScatter"
+              :option="scatterOption"
+              :theme="'vintage'"
+            ></BaseCharts>
+          </BorderBox>
+        </div>
+      </div>
+      <div :class="overall.tablePart">
+        <BorderBox title="攻击事件" type="table" :class="overall.tableWrap">
+          <div :class="overall.tableForm">
+            <el-form
+              :inline="true"
+              :model="tableformItems"
+              label-position="left"
+              label-width="100px"
+            >
+              <el-form-item label="端口：" label-width="50px">
+                <el-input v-model="tableformItems.primaryPort"></el-input>
+              </el-form-item>
+              <el-form-item label="疑似攻击类型：">
+                <el-select v-model="tableformItems.protocol" placeholder="请选择">
+                  <el-option
+                    v-for="item in protocolOpt"
+                    :key="item.value"
+                    :label="item.label"
+                    :value="item.value"
+                  ></el-option>
+                </el-select>
+              </el-form-item>
+              <el-form-item label="协议类型：" label-width="70px">
+                <el-select v-model="tableformItems.attackType" placeholder="请选择">
+                  <el-option
+                    v-for="item in attackOpt"
+                    :key="item.value"
+                    :label="item.label"
+                    :value="item.value"
+                  ></el-option>
+                </el-select>
+              </el-form-item>
+              <el-form-item label="危险等级程度：">
+                <el-select v-model="tableformItems.rank" placeholder="请选择">
+                  <el-option
+                    v-for="item in riskOpt"
+                    :key="item.value"
+                    :label="item.label"
+                    :value="item.value"
+                  ></el-option>
+                </el-select>
+              </el-form-item>
+              <el-form-item>
+                <el-button type="primary" @click="handleTableQueryBtn">查询</el-button>
+                <el-button type="primary" @click="handleTableResetBtn">重置</el-button>
+                <el-button type="primary" @click="handleTableExportBtn">导出</el-button>
+              </el-form-item>
+            </el-form>
+          </div>
+          <div :class="overall.tableContent">
+            <Table
+              :tableData="tableData"
+              @handleCheck="handleTableClick"
+              :class="overall.tableBox"
+              @handleSelectionChange="handleSelectionChange"
+            ></Table>
+            <Pagination
+              :option="pageOption"
+              @handleCurrentChange="handleCurrentChange"
+              @handleSizeChange="handleSizeChange"
+            ></Pagination>
+          </div>
+        </BorderBox>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script lang="ts">
+// @ is an alias to /src
+import { Component, Vue } from 'vue-property-decorator'
+import BorderBox from '@/components/Common/BorderBox.vue'
+import { baseBarOption, baseScatterOption } from '@/views/Common/charts/chartsOption'
+import Table from './components/Table.vue'
+import Pagination from './components/Pagination.vue'
+import { http } from '@/common/request'
+import { ECharts } from 'echarts'
+import dayjs from 'dayjs'
+import _ from 'lodash'
+interface IDefaultFormItems {
+  beginTime: string
+  endTime: string
+  ip?: string
+}
+interface IDefaultTableItems {
+  beginTime: string
+  endTime: string
+  primaryPort: string
+  protocol: string
+  attackType: string
+  rank: string
+  sort: string
+  order: string
+  page: number
+  rows: number
+  ip?: string // 多选
+}
+interface IParams {
+  code: number
+  data: number[]
+  message: string
+}
+// 导出，error提示没有数据不能导出，success可以导出
+enum exportFlag {
+  success = 1,
+  error = 0
+}
+@Component({
+  components: {
+    BorderBox,
+    Table,
+    Pagination
+  }
+})
+export default class Overall extends Vue {
+  private tableData: number[] = []
+  // 全局日期选择器
+  private formItems: IDefaultFormItems = {
+    beginTime: dayjs().format('YYYY-MM-DD'),
+    endTime: dayjs().format('YYYY-MM-DD')
+  }
+  // 只能选择开始时间之前
+  private startPickerOptions = {
+    disabledDate: (time: Date) => {
+      const endDateVal = this.formItems.endTime
+      if (endDateVal) {
+        return time.getTime() > new Date(endDateVal).getTime()
+      }
+    }
+  }
+  // 只能选择当前时间之后
+  private endPickerOptions = {
+    disabledDate: (time: Date) => {
+      const beginDateVal = this.formItems.beginTime
+      if (beginDateVal) {
+        return time.getTime() < new Date(beginDateVal).getTime()
+      }
+    }
+  }
+  // 表格条件选择器
+  private tableformItems: IDefaultTableItems = {
+    beginTime: this.formItems.beginTime,
+    endTime: this.formItems.endTime,
+    primaryPort: '',
+    protocol: '',
+    attackType: '',
+    rank: '',
+    sort: 'ip',
+    order: 'desc',
+    page: 1,
+    rows: 5,
+    ip: '' // 多选
+  }
+  // 多选
+  private multipleSelection: string
+  // 协议类型
+  private protocolOpt = [
+    { label: '全部', value: '' },
+    { label: '资源消耗性攻击', value: 1 },
+    { label: '服务消耗性攻击', value: 2 },
+    { label: '反射类攻击', value: 3 },
+    { label: '混合型攻击', value: 4 }
+  ]
+  // 疑似攻击类型
+  private attackOpt = [
+    { label: '全部', value: '' },
+    { label: 'TCP SYN', value: 1 },
+    { label: 'ICMP', value: 2 },
+    { label: 'DNS Flood', value: 3 },
+    { label: 'UDP Flood', value: 4 },
+    { label: 'HTTP Flood', value: 5 },
+    { label: 'TCP Floop', value: 6 },
+    { label: 'NTP Flood', value: 7 }
+  ]
+  // 危险等级
+  private riskOpt = [
+    { label: '全部', value: '' },
+    { label: '低', value: 1 },
+    { label: '中', value: 2 },
+    { label: '高', value: 3 }
+  ]
+
+  private loadedBar = false
+  private loadedScatter = true
+  private firstBarData: string
+  // echarts bar
+  private newBarOption = {
+    yAxis: [
+      {
+        name: 'IP',
+        data: []
+      },
+      {
+        name: '攻击总流量'
+      }
+    ],
+    series: [
+      {
+        data: []
+      },
+      {
+        data: []
+      }
+    ]
+  } as any
+  private newScatterOp = {
+    series: [
+      {
+        data: []
+      }
+    ]
+  } as any
+  private scatterData = [
+    { name: '80', value: 30 },
+    { name: '90', value: 80 }
+  ]
+  private barOption: any = _.defaultsDeep(this.newBarOption, baseBarOption)
+  private scatterOption: any = _.defaultsDeep(this.newScatterOp, baseScatterOption)
+  private ei: any | ECharts = {}
+  // 页码
+  private pageOption: any = {
+    total: 0,
+    currentPage: 1
+  }
+  private exportType: exportFlag = exportFlag.error
+  mounted() {
+    this.handleQueryBtn()
+  }
+  activated() {
+    //不是从详情页返回时
+    if (!this.$route.meta.isBack) {
+      this.formItems.beginTime = dayjs().format('YYYY-MM-DD')
+      this.formItems.endTime = dayjs().format('YYYY-MM-DD')
+      this.scatterOption.series[0].data = []
+      this.handleTableResetBtn()
+      this.handleQueryBtn()
+    }
+    this.$route.meta.isBack = false
+  }
+
+  // methods
+  // 全局查询按钮
+  handleQueryBtn() {
+    this.tableformItems.beginTime = this.formItems.beginTime
+    this.tableformItems.endTime = this.formItems.endTime
+    this.getBarData()
+    this.getTableData()
+  }
+  // 表格查询按钮
+  handleTableQueryBtn() {
+    this.tableformItems.primaryPort = _.trim(this.tableformItems.primaryPort)
+    console.log(this.tableformItems.primaryPort, this.tableformItems.primaryPort.length)
+    this.tableformItems.page = 1
+    this.getTableData()
+  }
+  // 表格重置按钮
+  handleTableResetBtn() {
+    this.tableformItems = {
+      beginTime: this.formItems.beginTime,
+      endTime: this.formItems.endTime,
+      primaryPort: '',
+      protocol: '',
+      attackType: '',
+      rank: '',
+      sort: 'ip',
+      order: 'desc',
+      page: 1,
+      rows: 5
+    }
+  }
+  // 表格导出按钮
+  handleTableExportBtn() {
+    if (this.exportType === 0) {
+      this.$message('无数据')
+    } else {
+      window.location.href =
+        process.env.VUE_APP_BASE_API +
+        `/netSecur-web/newDDoS/excelExport?${this.getParmas(this.tableformItems)}&type=1&eIp=${
+          this.multipleSelection
+        }`
+    }
+  }
+  // 表格多选
+  handleSelectionChange(val: any) {
+    this.multipleSelection = val
+  }
+  // 格式化参数
+  getParmas(data: any) {
+    let parmas: any = ''
+    for (const key in data) {
+      parmas += `${key}=${data[key]}&`
+    }
+    return parmas.slice(0, -1)
+  }
+  // 获取柱图数据
+  getBarData() {
+    http.post<IParams>('/netSecur-web/newDDoS/getIpTop5', this.formItems).then((resp: any) => {
+      const { data } = resp
+      if (data.length === 0) {
+        data.push({
+          name: '无数据',
+          value: 0
+        })
+      }
+      const barData = data.sort((a: any, b: any) => {
+        return a.value - b.value
+      })
+      const itemData: number[] = []
+      const itemName: string[] = []
+      barData.forEach((i: any) => {
+        itemData.push(i.value)
+        itemName.push(i.name)
+      })
+      const maxValue: any = _.max(itemData)
+      this.barOption.series[0].data = barData
+      this.barOption.series[1].data = itemData.map((val: any) => {
+        val = maxValue
+        return val
+      })
+      this.barOption.yAxis[0].data = itemName
+      this.barOption.yAxis[1].data = itemData
+      // 第一条数据
+      this.firstBarData = barData.length > 0 ? barData[barData.length - 1].name : ''
+      this.loadedBar = true
+      this.getScatterData()
+    })
+  }
+  // 获取散点图数据
+  getScatterData() {
+    const params: IDefaultFormItems = {
+      beginTime: this.formItems.beginTime,
+      endTime: this.formItems.endTime,
+      ip: this.firstBarData
+    }
+    http.post<IParams>('/netSecur-web/newDDoS/getScatterPointbyIp', params).then((resp: any) => {
+      const { data } = resp
+      const chartData: any = []
+      data.forEach((i: any) => {
+        chartData.push([i.packets, i.volumeRate])
+      })
+      this.scatterOption.series[0].data = chartData
+    })
+  }
+  // 获取表格数据
+  getTableData() {
+    http
+      .post<IParams>('/netSecur-web/newDDoS/getDDoSList', this.tableformItems)
+      .then((resp: any) => {
+        const {
+          data: { rows, total }
+        } = resp
+        if (rows.length > 0) {
+          this.exportType = exportFlag.success
+        } else {
+          this.exportType = exportFlag.error
+        }
+        this.tableData = rows
+        this.pageOption.total = total
+      })
+  }
+  // 点击柱图事件
+  handlerClickBar(e: any) {
+    this.firstBarData = e.name
+    this.getScatterData()
+  }
+  // 点击页码
+  handleCurrentChange(page: number) {
+    this.tableformItems.page = page
+    this.getTableData()
+  }
+  handleSizeChange(val: number) {
+    this.tableformItems.rows = val
+    this.tableformItems.page = 1
+    this.pageOption.currentPage = 1
+    this.getTableData()
+  }
+  //点击表格跳转事件
+  handleTableClick(val: any) {
+    this.$router.push({
+      path: '/DDosDetails',
+      query: {
+        beginTime: val.beginTime,
+        endTime: val.endTime,
+        ip: val.ip
+      }
+    })
+  }
+}
+</script>
+<style module="overall">
+.main {
+  width: 100%;
+  height: 100%;
+  text-align: left;
+}
+.dateBox {
+  height: 40px;
+}
+.contentBox {
+  height: calc(100% - 40px);
+}
+.chartPart {
+  display: flex;
+  width: 100%;
+  height: calc(35% - 10px);
+  margin-bottom: 10px;
+  justify-content: space-between;
+}
+.chartBox {
+  width: calc(50% - 5px);
+  height: 100%;
+}
+.tablePart {
+  width: 100%;
+  height: 65%;
+  overflow-x: scroll;
+}
+.tableForm {
+  position: relative;
+}
+.tableContent {
+  height: calc(100% - 40px);
+}
+.tableBox {
+  height: calc(100% - 30px);
+}
+.tableWrap {
+  min-width: 1280px;
+}
+</style>

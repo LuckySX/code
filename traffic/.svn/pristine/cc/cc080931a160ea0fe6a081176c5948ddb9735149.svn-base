@@ -1,0 +1,6 @@
+# Base api
+# Remeber to change this to your production server address
+# Here I used my mock server for this project
+# VUE_APP_BASE_API = '/'
+# VUE_APP_BASE_API = 'http://172.17.20.226:8080'
+VUE_APP_BASE_API = 'http://10.253.241.138:8080/netSecur-web'

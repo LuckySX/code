@@ -1,0 +1,134 @@
+<!--
+ * @Description: 
+ * @Autor: niumiaomiao
+ * @Date: 2020-03-30 21:29:28
+ * @LastEditors: niumiaomiao
+ * @LastEditTime: 2020-04-08 17:23:09
+ -->
+<template>
+  <div :class="TrafficTrend.container">
+    <div :class="TrafficTrend.searchBox">
+      <span :class="TrafficTrend.title">筛选查询</span>
+      <div :class="TrafficTrend.search">
+        <el-form :inline="true" :model="tableformItems">
+          <el-select v-model="tableformItems.type" placeholder="请选择">
+            <el-option
+              v-for="item in protocolOpt"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            ></el-option>
+          </el-select>
+          <el-input
+            v-model="tableformItems.name"
+            :class="TrafficTrend.searchText"
+            placeholder="请输入单位名称或网站域名"
+          ></el-input>
+          <el-button type="primary" @click="getTrafficData()">查询</el-button>
+        </el-form>
+      </div>
+    </div>
+    <div :class="TrafficTrend.listContent">
+      <div :class="TrafficTrend.listBox" v-for="(item, index) in pageData" :key="index">
+        <websiteCom :data="item" :index="index + 1"></websiteCom>
+      </div>
+      <div :class="TrafficTrend.pageBox">
+        <el-pagination
+          small
+          background
+          layout="prev, pager, next"
+          :total="webList.length"
+          :page-size="6"
+          @current-change="handleCurrentChange"
+        ></el-pagination>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script lang="ts">
+import { Component, Vue } from 'vue-property-decorator'
+import websiteCom from './components/webList.vue'
+import { http } from '@/common/request'
+@Component({
+  components: {
+    websiteCom
+  }
+})
+export default class TrafficTrend extends Vue {
+  private tableformItems: any = {
+    type: '',
+    name: ''
+  }
+  // 协议类型
+  private protocolOpt = [
+    { label: '全部', value: '' },
+    { label: '资源消耗性攻击', value: 1 },
+    { label: '服务消耗性攻击', value: 2 },
+    { label: '反射类攻击', value: 3 },
+    { label: '混合型攻击', value: 4 }
+  ]
+  private webList: any = []
+  private pageData: any = []
+  private getTrafficData() {
+    http.post('/netSecur-web/interFlow/trafficTrend', this.tableformItems).then(resp => {
+      const { data } = resp
+      this.webList = data
+      this.handleCurrentChange(1)
+    })
+  }
+  private handleCurrentChange(val) {
+    this.pageData = this.webList.slice((val - 1) * 6, val * 6)
+  }
+  mounted() {
+    this.getTrafficData()
+  }
+}
+</script>
+
+<style module="TrafficTrend">
+.container {
+  width: 100%;
+  height: 100%;
+}
+.searchBox {
+  width: 100%;
+  height: 46px;
+  line-height: 46px;
+  background: #fff;
+  padding-left: 20px;
+}
+.title {
+  font-size: 18px;
+  color: #2747be;
+  padding-left: 30px;
+  background: url('~@/assets/images/border/search.png') no-repeat;
+}
+.search {
+  float: right;
+  width: 630px;
+}
+.searchText {
+  width: 300px;
+  margin: 0 20px;
+}
+.listContent {
+  width: 100%;
+  height: calc(100% - 36px);
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin: 0 auto;
+  overflow-y: scroll;
+}
+.listBox {
+  margin-top: 10px;
+  width: 32.5%;
+  height: calc(50% - 25px);
+  background: #fff;
+}
+.pageBox {
+  margin: 0 auto;
+}
+</style>

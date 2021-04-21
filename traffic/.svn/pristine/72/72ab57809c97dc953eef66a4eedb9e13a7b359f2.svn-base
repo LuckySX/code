@@ -1,0 +1,146 @@
+<!--
+ * @Author: zhangjipei
+ * @Date: 2020-03-25 09:27:42
+ * @LastEditors: niumiaomiao
+ * @LastEditTime: 2020-05-13 15:40:02
+ * @Description: 单点认证步骤：获取code=>获取token=>获取用户信息=>获取角色信息
+ -->
+<template>
+  <div :class="Login.container"></div>
+</template>
+
+<script lang="ts">
+import { Component, Prop, Vue } from 'vue-property-decorator'
+import { State, Getter, Action, Mutation, namespace } from 'vuex-class'
+import { http } from '@/common/request'
+import { setSession, getSession, setCookies } from '@/utils/cookiesUtil'
+
+const userModuleVuex = namespace('user')
+@Component({})
+export default class Login extends Vue {
+  private userState: any = ''
+  private userCode: any = ''
+  // private tokenExpires: number | null = null
+  private userInfo = {
+    grantType: 'authorization_code',
+    accessToken: '',
+    spRoleList: ''
+  }
+  @Prop() private isLogin!: any
+  @userModuleVuex.Getter('getTokenState') token!: any
+  @userModuleVuex.Getter('getClientId') clientId!: any
+  @userModuleVuex.Getter('getClientSecret') clientSecret!: any
+  @userModuleVuex.Getter('getLoginState') loginState!: any
+  @Action('user/setLoginState') setLoginState!: Function
+  mounted() {
+    this.userState = this.getQueryString('state')
+    this.userCode = this.getQueryString('code')
+    // 单点登录
+    this.tokenVerification()
+  }
+  tokenVerification() {
+    if (getSession('env') === '1') {
+      this.getToken()
+    } else {
+      this.checkLogin()
+    }
+  }
+  // 获取token
+  getToken() {
+    const getTokenUrl = 'https://iam.bamboocloud.com/idp/oauth2/getToken'
+    const urlsuccess = '/netSecur-web/oauth2/getToken'
+    const getTokenParams = {
+      client_id: this.clientId,
+      client_secret: this.clientSecret,
+      code: this.userCode,
+      grant_type: this.userInfo.grantType
+    }
+    http
+      .post<IResponse>(urlsuccess, getTokenParams)
+      .then((res: any) => {
+        // console.log('getToken', res)
+        const { access_token } = res
+        this.userInfo.accessToken = access_token
+        this.getUserInfo()
+      })
+      .catch(res => {
+        console.log(res)
+      })
+  }
+  getUserInfo() {
+    const getUserUrl = 'https://iam.bamboocloud.com/idp/oauth2/getUserInfo'
+    const urlsuccess = '/netSecur-web/oauth2/getUserInfo'
+    http
+      .post<IResponse>(urlsuccess, {
+        access_token: this.userInfo.accessToken,
+        client_id: this.clientId
+      })
+      .then((res: any) => {
+        // console.log('getUserInfo', res)
+        const { spRoleList } = res
+        this.userInfo.spRoleList = spRoleList.toString()
+        this.getRoleInfo()
+      })
+  }
+  getRoleInfo() {
+    const url = 'http://iam.bamboocloud.com:18080/bim-server/api/rest/integration/ExtApiIngtTargetAccountService/getByUsername'
+    const urlsuccess = '/netSecur-web/oauth2/getRoleInfo'
+    http
+      .post<IResponse>(urlsuccess, {
+        Token: this.userInfo.accessToken,
+        username: this.userInfo.spRoleList
+      })
+      .then((res: any) => {
+        // console.log('getUserInfo', res)
+        const {
+          data: { role, username, userId }
+        } = res
+        // 获取用户信息发给后端
+        setCookies({ accessUserId: userId })
+        this.checkLogin()
+      })
+  }
+  checkLogin() {
+    http.post<IResponse>('netSecur-web/login/authorize').then((res: any) => {
+      const {
+        data: { token }
+      } = res
+      setCookies({ token: token })
+      // 登录成功进入导航页
+      this.loginSuccess()
+    })
+  }
+  // 登录成功，进入menuIndex导航页
+  loginSuccess() {
+    this.$emit('change', true)
+    this.setLoginState({
+      loginState: true
+    })
+    this.$router.push({
+      path: '/menuIndex'
+    })
+    this.$ss.set('userId', 'admin')
+  }
+  // 获取url参数
+  getQueryString(name) {
+    const winUrl: any = window.location.href
+    const searchUrl = winUrl.match(/([^?]+)$/)[1]
+    const reg = new RegExp('(^|&)' + name + '=([^&]*)(&|$)')
+    const r = searchUrl.match(reg)
+    if (r != null) return unescape(r[2])
+    return null
+  }
+}
+</script>
+
+<style module="Login">
+.container {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: url('~@/assets/images/sys/loginBg.jpg') no-repeat;
+  background-size: 100% 120%;
+  background-position: 0;
+  position: relative;
+}
+</style>

@@ -1,0 +1,43 @@
+<!--
+ * @Author: your name
+ * @Date: 2020-03-23 15:36:35
+ * @LastEditTime: 2020-03-25 13:23:33
+ * @LastEditors: Please set LastEditors
+ * @Description: In User Settings Edit
+ * @FilePath: \sz-new-FE\src\views\DDos\DDosDetails\Table.vue
+ -->
+<template>
+  <el-table
+    ref="multipleTable"
+    :data="tableData"
+    stripe
+    style="width: 100%"
+    height="100%"
+    @selection-change="handleSelectionChange"
+  >
+    <el-table-column type="selection" width="55"></el-table-column>
+    <el-table-column prop="orderNum" label="序号"></el-table-column>
+    <el-table-column prop="sourceIp" label="攻击IP" width="120px"></el-table-column>
+    <el-table-column prop="beginTime" label="起始时间"></el-table-column>
+    <el-table-column prop="volume" label="攻击流量"></el-table-column>
+    <el-table-column prop="volumeRate" label="峰值速率"></el-table-column>
+    <el-table-column prop="protocol" label="协议类型"></el-table-column>
+    <el-table-column prop="packets" label="包数"></el-table-column>
+    <el-table-column prop="concurrency" label="连接数"></el-table-column>
+    <el-table-column prop="protocol" label="协议类型"></el-table-column>
+    <el-table-column prop="dport" label="端口内容"></el-table-column>
+  </el-table>
+</template>
+
+<script lang="ts">
+import { Component, Prop, Vue } from 'vue-property-decorator'
+@Component({})
+export default class Table extends Vue {
+  @Prop() private tableData!: number[]
+  mounted() {}
+  // methods
+  private handleSelectionChange(val) {
+    this.$emit('handlerSelectClick', val)
+  }
+}
+</script>

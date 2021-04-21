@@ -1,0 +1,33 @@
+<!--
+ * @Author: niumiaomiao
+ * @Date: 2020-03-21 21:52:31
+ * @Description: 
+ -->
+<template>
+  <el-table :data="tableData"
+            stripe
+            style="width: 100%">
+    <el-table-column prop="date"
+                     label="序号"></el-table-column>
+    <el-table-column prop="name"
+                     label="IP"></el-table-column>
+    <el-table-column prop="address"
+                     label="被攻击流量"
+                     width="120px"></el-table-column>
+    <el-table-column prop="date"
+                     label="开始时间"></el-table-column>
+    <el-table-column prop="name"
+                     label="攻击类型"></el-table-column>
+    <el-table-column prop="address"
+                     label="运营商"></el-table-column>
+  </el-table>
+</template>
+
+<script lang="ts">
+import { Component, Prop, Vue } from 'vue-property-decorator'
+@Component({})
+export default class BorderCon extends Vue {
+  @Prop() private tableData!: number[]
+  mounted() {}
+}
+</script>

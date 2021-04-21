@@ -1,0 +1,357 @@
+/*
+ * @Author: niumiaomiao
+ * @Date: 2020-03-22 13:55:25
+ * @Description:
+ */
+
+const axisLabelColor = '#666'
+const axisLineColor = '#2648BE'
+
+/*
+ * @Author       fuping
+ * @Date         2020-03-22
+ * @Description  ECHARTS散点图
+ * @param        { Array } renderData [{ name: '80', value: 30 }]
+ *
+ */
+export const baseScatterOption = {
+  color: '#2593F2',
+  tooltip: {
+    show: true
+    // formatter: (data: any) => {
+    // }
+  },
+  grid: {
+    left: 10,
+    right: '4%',
+    bottom: 0,
+    top: 30,
+    containLabel: true
+  },
+  xAxis: {
+    axisLabel: {
+      color: axisLabelColor
+    },
+    axisLine: {
+      lineStyle: {
+        color: axisLineColor,
+        opacity: 0.5
+      }
+    },
+    splitLine: {
+      show: false
+    },
+    axisTick: {
+      length: 2
+    }
+  },
+  yAxis: {
+    name: 'MBP/S',
+    axisLabel: {
+      color: axisLabelColor
+    },
+    axisLine: {
+      lineStyle: {
+        color: axisLineColor,
+        opacity: 0.5
+      }
+    },
+    splitLine: {
+      lineStyle: {
+        color: axisLineColor,
+        opacity: 0.1
+      }
+    },
+    axisTick: {
+      length: 2
+    }
+  },
+  series: [
+    {
+      type: 'scatter',
+      symbolSize: 10,
+      data: []
+      // data: [
+      //   { name: '80', value: 30 },
+      //   { name: '90', value: 80 }
+      // ]
+    }
+  ]
+}
+
+/*
+ * @Author       fuping
+ * @Date         2020-03-22
+ * @Description  ECHARTS柱图
+ * @param        { Array } [{name: '', value: 0}]
+ */
+export const baseBarOption = {
+  color: '#0B56A7',
+  tooltip: {
+    trigger: 'axis',
+    formatter: '{b0}: {c0}'
+  },
+  grid: {
+    left: 30,
+    right: '4%',
+    bottom: 0,
+    top: 30,
+    containLabel: true
+  },
+  yAxis: [
+    {
+      type: 'category',
+      position: 'left',
+      offset: '0',
+      data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+      axisLabel: {
+        color: axisLabelColor
+      },
+      axisLine: {
+        lineStyle: {
+          color: axisLineColor,
+          opacity: 0.5
+        }
+      },
+      splitLine: {
+        lineStyle: {
+          color: axisLineColor,
+          opacity: 0.1
+        }
+      },
+      axisTick: {
+        length: 2,
+        alignWithLabel: true
+      },
+      nameTextStyle: {
+        color: axisLabelColor
+      }
+    },
+    {
+      type: 'category',
+      position: 'right',
+      offset: '0',
+      data: [],
+      axisLabel: {
+        color: axisLabelColor
+      },
+      axisLine: {
+        show: false
+      },
+      splitLine: {
+        show: false
+      },
+      axisTick: {
+        show: false
+      }
+    }
+  ],
+  xAxis: [
+    {
+      type: 'value',
+      axisLabel: {
+        color: axisLabelColor
+      },
+      axisLine: {
+        lineStyle: {
+          color: axisLineColor,
+          opacity: 0.5
+        }
+      },
+      splitLine: {
+        show: false
+      },
+      axisTick: {
+        length: 2
+      }
+    }
+  ],
+  series: [
+    {
+      name: '左',
+      type: 'bar',
+      yAxisIndex: 1,
+      barWidth: 12,
+      itemStyle: {
+        color: '#0B56A7'
+      },
+      data: [10, 52, 200, 334, 390, 330, 220],
+      z: 1
+    },
+    {
+      name: '背景',
+      type: 'bar',
+      barWidth: 12,
+      barGap: '-100%',
+      barCategoryGap: '50%',
+      itemStyle: {
+        color: '#F2F2F2'
+      },
+      tooltip: {
+        show: false
+      },
+      data: [10, 52, 200, 334, 390, 330, 220],
+      z: 0
+    }
+  ]
+}
+
+
+/**
+ * @Author: niumiaomiao
+ * @description: 地图
+ * @param {type}
+ * @return:
+ */
+export const mapOpiton = {
+  tooltip: {
+    trigger: 'item'
+  },
+  geo: {
+    map: 'world',
+    layoutCenter: ['50%', '50%'],
+    layoutSize: '180%',
+    label: {
+      emphasis: {
+        show: false
+      }
+    },
+    roam: true,
+    itemStyle: {
+      normal: {
+        borderColor: 'rgba(147, 235, 248, 1)',
+        borderWidth: 1,
+        areaColor: {
+          type: 'radial',
+          x: 0.5,
+          y: 0.5,
+          r: 0.8,
+          colorStops: [
+            {
+              offset: 0,
+              color: '#2c7bc7' // 0% 处的颜色
+            },
+            {
+              offset: 1,
+              color: '#62b8f3' // 100% 处的颜色
+            }
+          ],
+          globalCoord: false // 缺省为 false
+        },
+        shadowColor: 'rgba(128, 217, 248, 1)',
+        shadowOffsetX: -2,
+        shadowOffsetY: 2,
+        shadowBlur: 10
+      },
+      emphasis: {
+        areaColor: '#389BB7',
+        borderWidth: 1,
+        borderColor: '#1497fc'
+      }
+    },
+    data: [],
+    silent: true
+  },
+  series: [
+    {
+      tooltip: {
+        show: false
+      },
+      type: 'effectScatter',
+      coordinateSystem: 'geo',
+      zlevel: 3,
+      rippleEffect: {
+        brushType: 'fill',
+        period: 6,
+        scale: 4
+      },
+      label: {
+        normal: {
+          show: true,
+          color: '#fff',
+          position: 'bottom',
+          formatter: function (params: any) {
+            return params.name
+          }
+        }
+      },
+      symbolSize: function (val: any) {
+        return 10
+      },
+      itemStyle: {
+        normal: {
+          color: 'rgba(226, 48, 47, .5)'
+        }
+      }
+      // data: [scatterData[0]]
+    },
+    {
+      tooltip: {
+        show: false
+      },
+      type: 'effectScatter',
+      coordinateSystem: 'geo',
+      zlevel: 3,
+      rippleEffect: {
+        brushType: 'fill',
+        period: 6,
+        scale: 4
+      },
+      label: {
+        normal: {
+          show: true,
+          position: 'bottom',
+          formatter: function (params: any) {
+            return params.name
+          }
+        }
+      },
+      symbolSize: function (val: any) {
+        return 1
+      }
+      // data: scatterData1
+    },
+    {
+      name: 'chinalines',
+      type: 'lines',
+      zlevel: 2,
+      symbolSize: 10,
+      effect: {
+        show: true,
+        period: 2.5,
+        symbol: 'arrow',
+        trailLength: 0.05,
+        symbolSize: [3, 10],
+        // constantSpeed: 100,
+        delay: (i: any, v: any) => {
+          return i * 200
+        }
+      },
+      lineStyle: {
+        normal: {
+          color: (params: any) => {
+            // if (params.data.type) {
+            //   let color = params.data.type === "0" ? this.colorGroup[0] : this.colorGroup[1]
+            //   return color
+            // }
+            return '#d3f584'
+          },
+          width: 0.1,
+          opacity: 0,
+          curveness: 0
+        }
+      },
+      tooltip: {
+        // formatter: function (params) {
+        //   let data = params.data
+        //   let type = params.data.type === '0' ? '疫区漫游返回' : '境外人员驻留'
+        //   let location = params.data.type === '0' ? '漫游国家' : '号码归属地'
+        //   return `手机号：${params.data.value}</br>
+        //                   ${location}：${params.data.fromName}</br>
+        //                   人员类型: ${type}`
+        // }
+      }
+      // data: lineData
+    }
+  ]
+}

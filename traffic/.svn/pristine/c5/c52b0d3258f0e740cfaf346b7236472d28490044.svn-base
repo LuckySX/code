@@ -1,0 +1,195 @@
+<!--
+ * @Author: niumiaomiao
+ * @Date: 2020-03-20 17:12:00
+ * @Description: 实时监测
+ -->
+<template>
+  <div :class="RealTime.container">
+    <div :class="RealTime.title">攻击总流量分布</div>
+    <div :class="RealTime.mapBox">
+      <BaseCharts v-if="loadedMap" :option="mapOption" :theme="'vintage'"></BaseCharts>
+    </div>
+    <div :class="RealTime.tableBox" :style="showTable ? tableHeight() : ''">
+      <div :class="[RealTime.changeBtn, showTable ? RealTime.up : '']" @click="changeTable"></div>
+      <div :class="RealTime.tableOne">
+        <BorderBox title="实时IP/流量" type="table" bgColor="transparent" titleColor="#fff">
+          <TableOne :tableData="tableOneData" :class="RealTime.tableHeight"></TableOne>
+        </BorderBox>
+      </div>
+      <div :class="RealTime.tableTwo">
+        <BorderBox title="攻击信息" type="table" bgColor="transparent" titleColor="#fff">
+          <TableTwo :tableData="tableTwoData" :class="RealTime.tableHeight"></TableTwo>
+        </BorderBox>
+      </div>
+      <div :class="RealTime.tableThree">
+        <BorderBox title="攻击者来源国家" type="table" bgColor="transparent" titleColor="#fff">
+          <TableThree :tableData="tableThreeData" :class="RealTime.tableHeight"></TableThree>
+        </BorderBox>
+      </div>
+      <div :class="RealTime.tableFour">
+        <BorderBox title="攻击者来源省份分布" type="table" bgColor="transparent" titleColor="#fff">
+          <TableFour :tableData="tableFourData" :class="RealTime.tableHeight"></TableFour>
+        </BorderBox>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script lang="ts">
+import _ from 'lodash'
+import dayjs from 'dayjs'
+import { Component, Vue } from 'vue-property-decorator'
+import BorderBox from '@/components/Common/BorderBox.vue'
+import TableOne from './components/TableOne.vue'
+import TableTwo from './components/TableTwo.vue'
+import TableThree from './components/TableThree.vue'
+import TableFour from './components/TableFour.vue'
+import { http } from '@/common/request'
+import { mapOption } from '@/views/Common/charts/chartsOption'
+import '@/components/Charts/map/world1.js'
+// import geoCoordMapOrigin from '@/components/Charts/map/world.js'
+@Component({
+  components: {
+    BorderBox,
+    TableOne,
+    TableTwo,
+    TableThree,
+    TableFour
+  }
+})
+export default class Test extends Vue {
+  private tableOneData: number[] = []
+  private tableTwoData: number[] = []
+  private tableThreeData: number[] = []
+  private tableFourData: number[] = []
+  private mapData: number[] = []
+  private showTable = false
+  private loadedMap = true
+  private formParams = {
+    id: '',
+    time: dayjs().format('YYYY-MM-DD')
+  }
+  private changeTable() {
+    this.showTable = !this.showTable
+  }
+  private mapNewOption = {
+    series: [
+      {
+        data: []
+      },
+      {
+        data: []
+      },
+      {
+        data: []
+      }
+    ]
+  } as any
+  private mapOption: any = _.defaultsDeep(this.mapNewOption, mapOption)
+  // private mapOption: any = mapOption
+  tableHeight() {
+    return {
+      height: '305px'
+    }
+  }
+  mounted() {
+    interface IResponse<T = any> {
+      code: number
+      data: T
+      message: string
+    }
+    this.getMapData()
+  }
+  private getMapData() {
+    interface IBiz {
+      left1: number[]
+      left2: number[]
+      left3: number[]
+      left4: number[]
+      dataTop: number[]
+    }
+    http
+      .post<IBiz>('/netSecur-web/ddosFirst/getAll', this.formParams)
+      .then(resp => {
+        const bizData = resp.data
+        this.tableOneData = bizData.left1
+        this.tableTwoData = bizData.left2
+        this.tableThreeData = bizData.left3
+        this.tableFourData = bizData.left4
+        this.mapData = bizData.dataTop
+        // 地图数据处理
+      })
+  }
+}
+</script>
+<style module="RealTime">
+.container {
+  position: relative;
+  height: 100%;
+}
+.title {
+  font-size: 18px;
+  color: #2648be;
+  text-indent: 30px;
+  text-align: left;
+  margin: 0 0 10px 0;
+  border-bottom: 1px solid #f2f2f2;
+  padding-bottom: 10px;
+  background: url('~@/assets/images/ddos/title_map.png') no-repeat left 0;
+}
+.mapBox {
+  width: 100%;
+  height: 98%;
+}
+.changeBtn {
+  width: 100px;
+  height: 35px;
+  margin-top: -36px;
+  background: url('~@/assets/images/ddos/jt.png') no-repeat center;
+  background-color: rgba(39, 121, 210, 0.7);
+}
+.changeBtn:hover {
+  cursor: pointer;
+}
+.up {
+  transform: rotate(-180deg);
+}
+.tableBox {
+  height: 0px;
+  width: calc(100% + 40px);
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  margin-left: -20px;
+  margin-bottom: -20px;
+  background-color: rgba(39, 121, 210, 0.7);
+  transition: height 1s;
+}
+.tableHeight {
+  height: calc(100% - 40px);
+  overflow-y: scroll;
+}
+.tableOne {
+  width: calc(40% - 10px);
+  height: 100%;
+  margin-right: 10px;
+  float: left;
+}
+.tableTwo {
+  width: calc(20% - 10px);
+  height: 100%;
+  margin-right: 10px;
+  float: left;
+}
+.tableThree {
+  width: calc(20% - 10px);
+  height: 100%;
+  margin-right: 10px;
+  float: left;
+}
+.tableFour {
+  width: 20%;
+  height: 100%;
+  float: left;
+}
+</style>

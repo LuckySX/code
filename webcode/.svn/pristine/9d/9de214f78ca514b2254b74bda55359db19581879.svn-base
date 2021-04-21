@@ -1,0 +1,198 @@
+/*
+ overide ElementUI css  create by fuping 2020-3-20
+*/
+
+/*
+form 表单override
+*/
+.el-form-item {
+  margin-bottom: 0;
+  margin-right: 30px;
+}
+
+.el-input, .el-input__inner {
+  width: 140px;
+}
+
+.el-date-editor .el-input, .el-date-editor .el-input__inner {
+  width: 180px;
+}
+
+.el-input__inner {
+  height: 24px;
+  line-height: 24px;
+  border-radius: 0;
+}
+
+.el-input--suffix .el-input__inner {
+  padding-right: 5px;
+}
+
+.el-form-item__label {
+  padding: 0;
+}
+
+.el-button {
+  height: 24px;
+  line-height: 23px;
+  padding: 0px 20px;
+  border-radius: 1.5px;
+  background: #0062FF;
+  border-color: #0062FF;
+  font-size: 12px;
+  width: 90px;
+  box-sizing: border-box;
+}
+
+.el-button--primary.is-plain {
+  color: #0062FF;
+  background: #fff;
+  border-color: #0062FF;
+  margin-right: 20px;
+}
+
+.el-button--primary.is-plain:hover {
+  color: #fff;
+  background: #0062FF;
+  border-color: #0062FF;
+}
+
+/*
+table 表单override
+*/
+.el-table th {
+  background: rgba(0, 98, 255, 0.05);
+}
+
+.el-table thead {
+  color: rgba(0, 0, 0, .8);
+}
+
+.el-table {
+  color: rgba(0, 0, 0, .75);
+}
+
+.el-breadcrumb {
+  font-size: 15px;
+}
+
+span.el-breadcrumb__inner {
+  color: #000 !important;
+}
+
+.el-breadcrumb__separator {
+  color: #000 !important;
+}
+
+.el-input__inner {
+  color: #666;
+  background: #FFFFFF;
+  border: 1px solid #DCDCDC;
+  border-radius: 2px;
+  border-radius: 2px;
+}
+
+.el-select .el-input .el-select__caret {
+  color: #0062FF;
+}
+
+input[type=text]::-webkit-input-placeholder {
+  color: rgba(0, 0, 0, .5);
+}
+
+.el-form-item__label {
+  color: rgba(0, 0, 0, .75);
+}
+
+.el-input__prefix, .el-input__suffix {
+  color: #3762ff;
+}
+
+.el-input__prefix, .el-input__suffix {
+  color: #3762ff;
+}
+
+.el-date-editor .el-icon-circle-close {
+  display: none;
+}
+
+.el-input__icon {
+  line-height: 43px;
+}
+
+.el-select-dropdown {
+  border: 1px solid #3762ff;
+}
+
+.el-table td, .el-table th {
+  padding: 5px 0;
+}
+
+/* dialog */
+.el-menu--collapse {
+  width: 40px;
+}
+
+.el-menu {
+  background-color: #04388c;
+  text-align: left;
+}
+
+.el-submenu__title:hover {
+  background-color: #3097f1;
+}
+
+.el-menu-item:focus, .el-menu-item:hover {
+  background-color: #0073d8;
+}
+
+.el-submenu.is-active>.el-submenu__title {
+  background-color: #3097f1;
+  font-weight: bold;
+}
+
+.el-submenu .el-submenu .el-submenu__title {
+  font-weight: normal;
+  font-size: 14px;
+}
+
+.el-submenu__title {
+  border-bottom: 1px solid #010f56;
+  color: #fff;
+  font-size: 16px;
+}
+
+.el-menu--vertical .el-submenu__title {
+  font-size: 14px;
+}
+
+.el-menu-item {
+  color: #fff;
+}
+
+.el-menu-item.is-active {
+  color: #fff;
+  background-color: #0073d8;
+}
+
+.el-menu-item, .el-submenu__title {
+  height: 40px;
+  line-height: 40px;
+}
+
+.el-submenu .el-menu-item, .el-submenu .el-submenu .el-submenu__title {
+  height: 24px;
+  line-height: 24px;
+  border-bottom: 1px solid #010f56;
+}
+
+.el-menu--vertical .el-submenu .el-menu-item {
+  height: 40px;
+  line-height: 40px;
+  border-bottom: none;
+}
+
+.el-submenu__title i {
+  color: #fff;
+  font-size: 14px;
+}

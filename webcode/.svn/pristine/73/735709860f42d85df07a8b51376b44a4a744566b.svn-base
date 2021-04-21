@@ -1,0 +1,360 @@
+<!--
+ * @Author: fuping
+ * @Date: 2020-04-16 15:04:55
+ * @LastEditors: fuping
+ * @LastEditTime: 2020-04-23 14:57:17
+ * @Description: 
+ -->
+<template>
+  <div :class="flowProtocol.main">
+    <div :class="flowProtocol.dateBox">
+      <VForm :option="formDateOp" ref="formDate"></VForm>
+    </div>
+    <div :class="flowProtocol.contentBox">
+      <div :class="flowProtocol.topPart">
+        <div :class="flowProtocol.pieBox">
+          <BorderBox title="应用流量分布" type="pie">
+            <BaseCharts :option="pieOption" :theme="'vintage'" @handlerClick="handlerClick"></BaseCharts>
+          </BorderBox>
+        </div>
+        <div :class="flowProtocol.lineBarBox">
+          <div :class="flowProtocol.tabBox">
+            <el-tabs v-model="activeName1" type="card" @tab-click="handleTabClick1">
+              <el-tab-pane :label="activeTitle + '流量TOP10'" name="0"></el-tab-pane>
+              <el-tab-pane :label="activeTitle + '连接数TOP10'" name="1"></el-tab-pane>
+            </el-tabs>
+          </div>
+          <div :class="flowProtocol.chartBox">
+            <BaseCharts :option="barLineOption" :theme="'vintage'"></BaseCharts>
+          </div>
+        </div>
+      </div>
+      <div :class="flowProtocol.bottomPart">
+        <div :class="flowProtocol.tabBox">
+          <el-tabs v-model="activeName2" type="card" @tab-click="handleTabClick2">
+            <el-tab-pane :label="activeTitle + '上行流量趋势'" name="0"></el-tab-pane>
+            <el-tab-pane :label="activeTitle + '下行流量趋势'" name="1"></el-tab-pane>
+            <el-tab-pane :label="activeTitle + '连接数趋势'" name="2"></el-tab-pane>
+          </el-tabs>
+        </div>
+        <div :class="flowProtocol.chartBox">
+          <BaseCharts :option="areaStackOption" :theme="'vintage'"></BaseCharts>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script lang="ts">
+import { Component, Vue, Ref } from 'vue-property-decorator'
+import { pieOption, barLineOption, areaStackOption, getAreaStackData } from '@/views/Common/charts/chartsOption'
+import { dataFormmater } from '@/utils/assist'
+import { http } from '@/common/request'
+import BorderBox from '@/components/Common/BorderBox.vue'
+import dayjs from 'dayjs'
+import defaultsDeep from 'lodash/defaultsDeep'
+const UrlPie = '/netSecur-web/flow/introduce'
+const UrlChart = '/netSecur-web/flow/chart'
+interface IDefaultFormItems {
+  startDate: string
+  endDate: string
+  protocolgroup: string
+}
+interface IParams {
+  code: number
+  data: number[]
+  message: string
+}
+@Component({
+  components: {
+    BorderBox
+  }
+})
+export default class FlowProtocol extends Vue {
+  @Ref() readonly formDate!: VP.VForm
+  private activeName1 = '0'
+  private activeName2 = '0'
+  private activeTitle = ''
+  private chart1Group: number[] = []
+  private chart2Group: any[] = []
+  private pieLegendData: any
+  // 全局日期选择器
+  private formItems: IDefaultFormItems = {
+    startDate: dayjs().format('YYYY-MM-DD'),
+    endDate: dayjs().format('YYYY-MM-DD'),
+    protocolgroup: ''
+  }
+  private formDateOp: any = {
+    inline: true,
+    btnPos: 'left',
+    items: [
+      {
+        label: '开始时间：',
+        type: 'date',
+        comOpt: {
+          id: 'startDate',
+          clearable: false,
+          value: dayjs().format('YYYY-MM-DD'),
+          type: 'date',
+          disabled: false,
+          pickOptions: {
+            disabledDate: this.startDisable
+          }
+        }
+      },
+      {
+        label: '结束时间：',
+        type: 'date',
+        comOpt: {
+          id: 'endDate',
+          clearable: false,
+          value: this.formItems.endDate,
+          type: 'date',
+          disabled: false,
+          pickOptions: {
+            disabledDate: this.endDisable
+          }
+        }
+      }
+    ],
+    btns: [
+      {
+        comOpt: {
+          id: 'query',
+          value: '查询',
+          width: 90,
+          disabled: false,
+          click: this.handleQueryBtn
+        }
+      }
+    ]
+  }
+  // echarts bar
+  private newbarLineOption = {
+    tooltip: {
+      formatter: (data: any) => {
+        let tip = `类型: ${data[0].name}<br>`
+        for (let i = 0; i < data.length; i++) {
+          tip += `${data[i].seriesName}: ${data[i].value}${data[i].seriesType === 'bar' ? 'GB' : '万次'}<br>`
+        }
+        return tip
+      }
+    }
+  } as any
+  private newpieOption = {
+    tooltip: {
+      confine: true,
+      formatter: '{b} : {c}GB({d}%)'
+    },
+    legend: {
+      show: true,
+      formatter: this.pieLegend,
+      data: []
+    },
+    series: [
+      {
+        radius: '75%',
+        center: ['30%', '50%'],
+        label: {
+          show: false
+        },
+        labelLine: {
+          show: false
+        }
+      }
+    ]
+  } as any
+  private barLineOption: any = defaultsDeep(this.newbarLineOption, barLineOption)
+  private pieOption: any = defaultsDeep(this.newpieOption, pieOption)
+  private areaStackOption: any = defaultsDeep(areaStackOption)
+  mounted() {
+    this.handleQueryBtn()
+  }
+  // methods
+  // 全局查询按钮
+  handleQueryBtn() {
+    this.formItems = this.formDate.getValue()
+    this.formItems.protocolgroup = ''
+    this.activeName1 = '0'
+    this.activeName2 = '0'
+    this.getPieData()
+  }
+  handleTabClick1(tab: any) {
+    this.activeName1 = tab.name
+    this.barLineData(this.chart1Group[tab.name])
+  }
+  handleTabClick2(tab: any) {
+    this.activeName2 = tab.name
+    this.lineData(this.chart2Group[tab.name])
+  }
+  getPieData() {
+    http.post<IParams>(UrlPie, this.formItems).then((resp: any) => {
+      const { data } = resp
+      const legendData: string[] = []
+      if (data.length === 0) {
+        data.push({
+          name: '无数据',
+          value: 0
+        })
+      }
+      data.forEach((i: any) => {
+        legendData.push(i.name)
+      })
+      this.pieOption.legend.data = data
+      this.pieOption.series[0].data = data
+      this.pieLegendData = dataFormmater(data, 'name')
+      this.getChartData()
+    })
+  }
+  getChartData() {
+    http.post<IParams>(UrlChart, this.formItems).then((resp: any) => {
+      const {
+        data: { rr1, rr2, rr3, rr4, rr5, rr6 }
+      } = resp
+      this.activeTitle = rr6[0].protocolgroup
+      this.chart1Group = [rr1, rr2]
+      this.barLineData(rr1)
+      this.chart2Group = [this.dataFormatLine(rr3, 'GB'), this.dataFormatLine(rr4, 'GB'), this.dataFormatLine(rr5, '万次')]
+      this.lineData(this.chart2Group[0])
+    })
+  }
+  barLineData(data: any) {
+    const xAxisData: number[] = []
+    const barData = data.filter((i: any) => {
+      return i.type === 'bar'
+    })
+    const lineData = data.filter((i: any) => {
+      return i.type === 'line'
+    })
+    barData.forEach((i: any) => {
+      xAxisData.push(i.name)
+    })
+    if (this.activeName1 === '0') {
+      this.barLineOption.yAxis[0].name = '流量/GB'
+      this.barLineOption.yAxis[1].name = '连接数/万次'
+      this.barLineOption.series[0].name = '流量'
+      this.barLineOption.series[1].name = '连接数'
+      this.barLineOption.series[0].data = barData
+      this.barLineOption.series[1].data = lineData
+    } else {
+      this.barLineOption.yAxis[0].name = '连接数/万次'
+      this.barLineOption.yAxis[1].name = '流量/GB'
+      this.barLineOption.series[1].data = barData
+      this.barLineOption.series[0].data = lineData
+    }
+    this.barLineOption.xAxis[0].data = xAxisData.length > 0 ? xAxisData : ['无数据']
+  }
+  lineData(data: any) {
+    const { legendData, xAxisData, seriesData } = getAreaStackData(data)
+    this.areaStackOption.legend.data = legendData
+    this.areaStackOption.xAxis.data = xAxisData.length > 0 ? xAxisData : ['无数据']
+    this.areaStackOption.series = seriesData
+    if (this.activeName2 === '2') {
+      this.areaStackOption.yAxis[0].name = '连接数/万次'
+    } else {
+      this.areaStackOption.yAxis[0].name = '流量/GB'
+    }
+  }
+  // 饼图点击事件
+  handlerClick(e) {
+    this.activeTitle = e.name
+    this.formItems.protocolgroup = e.name
+    this.activeName1 = '0'
+    this.activeName2 = '0'
+    this.getChartData()
+  }
+  // 面积图数据处理
+  dataFormatLine(data: any, unit = 'GB') {
+    const arr1: string[] = []
+    const arr2: any[] = []
+    data = data.map((i: any) => {
+      arr1.push(i.category)
+      return {
+        name: i.name,
+        value: i.value,
+        category: i.category,
+        unit: unit
+      }
+    })
+    const arr3 = Array.from(new Set(arr1))
+    arr3.forEach((i: any) => {
+      const arr4: any[] = []
+      data.forEach((v: any) => {
+        if (v.category === i) {
+          arr4.push(v)
+        }
+      })
+      arr2.push(arr4)
+    })
+    return arr2
+  }
+  // 饼图图例格式化
+  pieLegend(data: any) {
+    return `${data}：${this.pieLegendData[data].value}`
+  }
+  // 根据结束时间联动，不能大于结束时间
+  startDisable(time: Date) {
+    const endDateVal = this.formDate.getValue().endDate
+    if (endDateVal) {
+      return time.getTime() > new Date(endDateVal).getTime()
+    }
+  }
+  // 根据开始时间联动，只能选择开始时间之前
+  endDisable(time: Date) {
+    const beginDateVal = this.formDate.getValue().startDate
+    if (beginDateVal) {
+      return time.getTime() < new Date(beginDateVal).getTime() - 1 * 24 * 60 * 60 * 1000
+    }
+  }
+}
+</script>
+<style module="flowProtocol">
+.main {
+  width: 100%;
+  height: 100%;
+  text-align: left;
+}
+.dateBox {
+  height: 40px;
+}
+.contentBox {
+  height: calc(100% - 40px);
+}
+.topPart {
+  display: flex;
+  height: calc(50% - 10px);
+  margin-bottom: 10px;
+}
+.bottomPart {
+  height: calc(50% - 0px);
+}
+.pieBox {
+  width: calc(50% - 5px);
+  margin-right: 5px;
+}
+.lineBarBox {
+  width: calc(50% - 5px);
+  margin-left: 5px;
+  padding: 10px;
+  box-sizing: border-box;
+  background: #fff;
+  box-shadow: 0 3px 10px 0 rgba(0, 0, 0, 0.06);
+}
+.bottomPart {
+  padding: 10px;
+  box-sizing: border-box;
+  background: #fff;
+  box-shadow: 0 3px 10px 0 rgba(0, 0, 0, 0.06);
+}
+.tableBox {
+  height: 40%;
+}
+.tabBox {
+  /* display: flex;
+  justify-content: space-between; */
+  height: 40px;
+}
+.chartBox {
+  height: calc(100% - 40px);
+}
+</style>

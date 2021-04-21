@@ -1,0 +1,539 @@
+<!--
+ * @Description: 
+ * @Autor: niumiaomiao
+ * @Date: 2020-05-27 14:51:15
+ * @LastEditors: niumiaomiao
+ * @LastEditTime: 2020-06-26 16:36:19
+-->
+<template>
+  <div :class="domainDetail.container">
+    <div :class="domainDetail.topBox">
+      <div :class="domainDetail.numberBox">
+        <BorderBox title="昨日域名监测详情" type="table">
+          <div :class="domainDetail.numberTop">
+            <div :class="domainDetail.numberDetail">
+              <div :class="domainDetail.numFont">
+                <number :number="monitorDetail.maliceDomainCount" color="#1198ff" :size="40" unit="个"></number>
+              </div>
+              <p :class="domainDetail.numberText">
+                恶意域名数
+              </p>
+            </div>
+            <div :class="domainDetail.numberDetail">
+              <div :class="domainDetail.numFont">
+                <number :number="monitorDetail.maliceDomainVisit" color="#1198ff" :size="30" unit="次"></number>
+              </div>
+              <p :class="domainDetail.numberText">
+                连接数
+              </p>
+            </div>
+            <div :class="domainDetail.numberDetail">
+              <div :class="domainDetail.numFont">
+                <number :number="monitorDetail.maliceDomainUser" color="#1198ff" :size="30" unit="个"></number>
+              </div>
+              <p :class="domainDetail.numberText">
+                用户数
+              </p>
+            </div>
+          </div>
+          <div :class="domainDetail.numberBot">
+            <div :class="domainDetail.numberDetail">
+              <div :class="domainDetail.numFont">
+                <number :number="monitorDetail.phishingDomainCount" color="#ffa906" :size="40" unit="个"></number>
+              </div>
+              <p :class="domainDetail.numberText">
+                钓鱼域名数
+              </p>
+            </div>
+            <div :class="domainDetail.numberDetail">
+              <div :class="domainDetail.numFont">
+                <number :number="monitorDetail.phishingDomainVisit" color="#ffa906" :size="30" unit="次"></number>
+              </div>
+              <p :class="domainDetail.numberText">
+                连接数
+              </p>
+            </div>
+            <div :class="domainDetail.numberDetail">
+              <div :class="domainDetail.numFont">
+                <number :number="monitorDetail.phishingDomainUser" color="#ffa906" :size="30" unit="个"></number>
+              </div>
+              <p :class="domainDetail.numberText">
+                用户数
+              </p>
+            </div>
+          </div>
+        </BorderBox>
+      </div>
+      <div :class="domainDetail.barBox">
+        <BorderBox title="今日恶意域名小时趋势图" type="line">
+          <div :class="domainDetail.timeBox" style="display: none">
+            <el-time-select
+              v-model="startTime"
+              :picker-options="{
+                start: '00:00',
+                step: '1:00',
+                end: '24:00'
+              }"
+              placeholder="选择时间"
+            ></el-time-select>
+            -
+            <el-time-select
+              v-model="endTime"
+              :picker-options="{
+                start: '00:00',
+                step: '1:00',
+                end: '24:00'
+              }"
+              placeholder="选择时间"
+            ></el-time-select>
+            <div :class="domainDetail.searchBox" @click="getChartData()">查 询</div>
+          </div>
+          <BaseCharts :option="stackBarLineOp" :theme="'vintage'"></BaseCharts>
+        </BorderBox>
+      </div>
+    </div>
+    <div :class="domainDetail.bottomBox">
+      <BorderBox title="今日数据列表" type="table">
+        <VForm :option="formObj" ref="form"></VForm>
+        <VTable
+          class="domainOverview"
+          :option="tableOpt"
+          :height="tableHeight"
+          ref="table"
+          @handleCurrentPageChange="handleCurrentChange"
+          @handleSizePageChange="handleSizeChange"
+        ></VTable>
+      </BorderBox>
+    </div>
+    <el-dialog :title="tableTitle" :visible.sync="tableShow" width="70%">
+      <VTable ref="table1" :option="dialogTableOpt" :height="dialogTableHeight"></VTable>
+    </el-dialog>
+  </div>
+</template>
+
+<script lang="ts">
+import { defaultsDeep } from 'lodash'
+import { stackBarLineOption } from '@/views/Common/charts/doubleLine'
+import { Component, Vue, Ref } from 'vue-property-decorator'
+import { http } from '@/common/request'
+import { replace, trim, assign } from 'lodash'
+import dayjs from 'dayjs'
+import BorderBox from '@/components/Common/BorderBox.vue'
+import number from '@/components/Common/number/index.vue'
+const UrlMalicious = '/netSecur-web/newMalice/maliceType'
+const UrlSource = '/netSecur-web/newMalice/sourece'
+const UrlDetail = '/netSecur-web/newMaliceDetail/domainMonitorDetail'
+const UrlTrend = '/netSecur-web/newMaliceDetail/maliceDomainHourTrend'
+const UrlTable = '/netSecur-web/newMaliceDetail/maliceDetailList'
+const UrlTableDia = '/netSecur-web/newMaliceDetail/maliceDetailTop'
+interface IChartsFormItems {
+  startTime: string
+  endTime: string
+}
+interface IDefaultFormItems {
+  domain: string
+  type: string
+  source: string
+  sort: string
+  order: string
+  page: number
+  rows: number
+}
+interface IDomainSelect {
+  name: string
+  value: number
+}
+interface IParams {
+  code: number
+  data: number[]
+  message: string
+}
+@Component({
+  components: {
+    BorderBox,
+    number
+  }
+})
+export default class DomainDetail extends Vue {
+  @Ref() readonly form!: VP.VForm
+  @Ref() readonly table!: VP.VTable
+  private monitorDetail: any = {
+    maliceDomainCount: 0,
+    maliceDomainVisit: 0,
+    maliceDomainUser: 0,
+    phishingDomainCount: 0,
+    phishingDomainVisit: 0,
+    phishingDomainUser: 0
+  }
+  private startTime = '00:00'
+  private endTime = '24:00'
+  private tableShow = false
+  private tableTitle = ''
+  private tableTitleDomain: string
+  private timeFormObj: any = {
+    inline: true,
+    items: [
+      {
+        label: '',
+        type: 'date',
+        comOpt: {
+          id: 'startDate',
+          clearable: false,
+          type: 'datetimeMinute',
+          disabled: false,
+          placeholder: ''
+        }
+      }
+    ]
+  }
+  private formObj: any = {
+    inline: true,
+    items: [
+      {
+        label: '域名：',
+        type: 'text',
+        comOpt: {
+          id: 'domain',
+          width: 150,
+          placeholder: '请输入域名'
+        }
+      },
+      {
+        label: '恶意类型：',
+        type: 'select',
+        comOpt: {
+          id: 'type',
+          width: 150,
+          value: '',
+          placeholder: '请选择',
+          data: []
+        }
+      },
+      {
+        label: '来源：',
+        type: 'select',
+        comOpt: {
+          id: 'source',
+          width: 150,
+          value: '',
+          placeholder: '请选择',
+          data: []
+        }
+      }
+    ],
+    btns: [
+      {
+        comOpt: {
+          id: 'query',
+          value: '查询',
+          disabled: false,
+          click: this.handleTableQueryBtn
+        }
+      },
+      {
+        comOpt: {
+          id: 'reset',
+          value: '重置',
+          disabled: false,
+          click: this.handleTableResetBtn
+        }
+      }
+    ]
+  }
+  private tableOpt: any = {
+    stripe: true,
+    sortMode: 'single',
+    sortChange: this.sortChange,
+    defaultSort: [
+      { prop: 'count', order: 'descending' },
+      { prop: 'links', order: '' }
+    ],
+    column: [
+      { name: '序号', value: 'orderNum', width: 55 },
+      { name: '域名', value: 'domain', tooltip: true, minWidth: 120 },
+      { name: '恶意类型', value: 'type', tooltip: true, minWidth: 100 },
+      { name: '来源', value: 'source', tooltip: true, minWidth: 100 },
+      { name: '用户数', value: 'count', tooltip: true, sortable: 'custom', minWidth: 100 },
+      { name: '连接数', value: 'links', tooltip: true, sortable: 'custom', minWidth: 100 },
+      {
+        name: 'TOP10访问用户',
+        value: '',
+        align: 'center',
+        width: 140,
+        operations: [
+          {
+            label: '查看',
+            tooltip: function(row: any) {
+              return row.domain + '-用户访问数据'
+            },
+            disCallBack() {
+              return false
+            },
+            handlerClick: this.dialogTable
+          }
+        ]
+      }
+    ],
+    data: [],
+    pagination: true,
+    pageOpt: {
+      currentPage: 1,
+      total: 0,
+      pageSizes: [5, 10, 20, 30, 40, 50],
+      pageSize: 5
+    }
+  }
+  private dialogTableOpt: any = {
+    stripe: true,
+    sortMode: 'single',
+    column: [
+      { name: 'IP', value: 'ip' },
+      { name: '地理位置', value: 'city', tooltip: true },
+      { name: '访问次数', value: 'links', tooltip: true }
+    ],
+    data: [],
+    pagination: false
+  }
+  private tableHeight = 'calc(100% - 80px)'
+  private dialogTableHeight = '350'
+  // 表格条件选择器
+  private formItems: IDefaultFormItems = {
+    domain: '',
+    type: '',
+    source: '',
+    sort: 'count',
+    order: 'desc',
+    page: 1,
+    rows: 5
+  }
+  // 弹框表格条件选择器
+  private dialogTableParams = {
+    domain: this.tableTitleDomain,
+    sort: 'ip',
+    order: 'desc'
+  }
+  private newstackBarLineOp = {
+    yAxis: [
+      {
+        name: '连接数/万次'
+      },
+      {
+        name: '用户数/万人'
+      }
+    ]
+  } as any
+  private stackBarLineOp: any = defaultsDeep(this.newstackBarLineOp, stackBarLineOption)
+  mounted() {
+    // 列表数据
+    this.getMalicious()
+    this.getSource()
+    this.init()
+  }
+  init() {
+    this.tableItemFormat()
+    this.getDetailData()
+    this.getTableData()
+    this.getChartData()
+  }
+  // 获取恶意类型
+  getMalicious() {
+    http.post<IDomainSelect>(UrlMalicious).then((resp: any) => {
+      const { data } = resp
+      this.form.setItemData('type', data)
+      this.form.setValue([{ id: 'type', value: '' }])
+    })
+  }
+  // 获取来源类型
+  getSource() {
+    http.post<IDomainSelect>(UrlSource).then((resp: any) => {
+      const { data } = resp
+      this.form.setItemData('source', data)
+      this.form.setValue([{ id: 'source', value: '' }])
+    })
+  }
+  // 监测详情数据
+  getDetailData() {
+    http.post<IParams>(UrlDetail).then((resp: any) => {
+      const { data } = resp
+      this.monitorDetail = data
+    })
+  }
+  // 获取趋势图数据
+  getChartData() {
+    if (this.startTime > this.endTime) {
+      this.$message('开始时间不得大于结束时间')
+      return
+    }
+    const chartParams: IChartsFormItems = {
+      startTime: dayjs().format('YYYY:MM:DD ') + this.startTime + ':00',
+      endTime: dayjs().format('YYYY:MM:DD ') + this.endTime + ':00'
+    }
+    http.post<IParams>(UrlTrend).then((resp: any) => {
+      const { data } = resp
+      if (data.length === 0) {
+        data.push({
+          name: '无数据',
+          value: 0
+        })
+      }
+      const xAxisData: number[] = []
+      const barData1 = data.filter((i: any) => {
+        return i.category === '恶意域名用户数'
+      })
+      const barData2 = data.filter((i: any) => {
+        return i.category === '钓鱼域名用户数'
+      })
+      const lineData1 = data.filter((i: any) => {
+        return i.category === '恶意域名连接数'
+      })
+      const lineData2 = data.filter((i: any) => {
+        return i.category === '钓鱼域名连接数'
+      })
+      barData1.forEach((i: any) => {
+        xAxisData.push(i.name)
+      })
+      this.stackBarLineOp.xAxis[0].data = xAxisData
+      this.stackBarLineOp.series[0].data = barData1
+      this.stackBarLineOp.series[1].data = barData2
+      this.stackBarLineOp.series[2].data = lineData1
+      this.stackBarLineOp.series[3].data = lineData2
+    })
+  }
+  // 获取表格数据
+  getTableData() {
+    // 点击查询按钮表格就恢复默认排序
+    http.post<IParams>(UrlTable, this.formItems).then((resp: any) => {
+      const {
+        data: { rows, total, pageNo }
+      } = resp
+      this.tableOpt.data = rows
+      this.tableOpt.pageOpt.total = total
+      this.tableOpt.pageOpt.currentPage = pageNo
+    })
+  }
+  // 点击页码
+  handleCurrentChange(page: number) {
+    this.formItems.page = page
+    this.getTableData()
+  }
+  handleSizeChange(val: number) {
+    this.formItems.rows = val
+    this.formItems.page = 1
+    this.getTableData()
+  }
+  // 弹框表格数据
+  getTableDiaData() {
+    this.dialogTableParams.domain = this.tableTitleDomain
+    http.post<IParams>(UrlTableDia, this.dialogTableParams).then((resp: any) => {
+      const { data } = resp
+      this.dialogTableOpt.data = data
+    })
+  }
+  // 表格查询按钮
+  handleTableQueryBtn() {
+    this.tableItemFormat()
+    this.getTableData()
+  }
+  tableItemFormat() {
+    assign(this.formItems, this.form.getValue())
+    this.formItems.domain = trim(this.formItems.domain)
+    this.formItems.page = 1
+  }
+  // 表格重置按钮
+  handleTableResetBtn() {
+    this.form.clearValue()
+  }
+  // 排序
+  // 排序
+  sortChange(column: object) {
+    const name: string = Object.keys(column)[0]
+    if (column[name] === 'descending') {
+      this.formItems.order = 'desc'
+    } else {
+      this.formItems.order = 'asc'
+    }
+    this.formItems.sort = name
+    this.getTableData()
+  }
+  dialogTable(row: any) {
+    this.tableShow = true
+    this.tableTitleDomain = row.domain
+    this.tableTitle = `${this.tableTitleDomain}访问用户TOP10`
+    this.getTableDiaData()
+  }
+}
+</script>
+<style module="domainDetail">
+.container {
+  width: 100%;
+  height: 100%;
+}
+.topBox {
+  width: 100%;
+  height: calc(45% - 10px);
+}
+.bottomBox {
+  width: 100%;
+  margin-top: 10px;
+  height: 55%;
+  background: #fff;
+}
+.numberBox {
+  width: 40%;
+  height: 100%;
+  background: #fff;
+  float: left;
+}
+.barBox {
+  margin-left: 10px;
+  width: calc(60% - 10px);
+  height: 100%;
+  background: #fff;
+  float: left;
+  position: relative;
+}
+.timeBox {
+  position: absolute;
+  top: 5px;
+  right: 80px;
+}
+.searchBox {
+  margin-left: 10px;
+  width: 60px;
+  height: 23px;
+  line-height: 23px;
+  color: #fff;
+  background: #2593f2;
+  text-align: center;
+  font-size: 12px;
+  position: absolute;
+  top: 0;
+  right: -65px;
+}
+.searchBox:hover {
+  cursor: pointer;
+  background: #66b1ff;
+}
+.numberTop {
+  display: flex;
+  width: 100%;
+  height: calc(50% - 1px);
+  border-bottom: 1px solid #e5e4ea;
+}
+.numberBot {
+  display: flex;
+  width: 100%;
+  height: 50%;
+}
+.numberDetail {
+  flex: 1;
+  text-align: center;
+}
+.numFont {
+  height: 40px;
+  line-height: 40px;
+}
+.numberText {
+  margin-top: 5px;
+}
+</style>

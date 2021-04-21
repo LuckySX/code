@@ -1,0 +1,96 @@
+/*
+ * @Author: zhangjipei
+ * @Date: 2020-03-19 11:21:33
+ * @LastEditors: zhangjipei
+ * @LastEditTime: 2020-03-30 16:55:08
+ * @Description:
+ */
+import { Module, MutationTree, ActionTree, ActionContext, GetterTree } from 'vuex'
+import { RootState } from './../store'
+import { http } from '@/common/request'
+
+export interface AppState {
+  isCollapse: boolean
+  name?: string
+  menuList: any[]
+}
+
+const appState: AppState = {
+  isCollapse: false,
+  name: '',
+  menuList: []
+}
+
+const mutations: MutationTree<AppState> = {
+  collapse(state: AppState, appinfo: any) {
+    // state.isCollapse = !state.isCollapse
+    state.isCollapse = appinfo.isCollapse
+  },
+  appName(state: AppState, appinfo: any) {
+    state.name = appinfo.name
+  },
+  menuList(state: AppState, data: any) {
+    console.log(data)
+    state.menuList = data
+  }
+}
+
+const actions: ActionTree<AppState, RootState> = {
+  /**
+   * 测试 设置App Name
+   * @param context
+   * @param param
+   */
+  setAppNameAction(context: ActionContext<AppState, RootState>, param: any) {
+    console.log(param)
+    context.commit('appName', param)
+  },
+  /**
+   * 测试 设置isCollapse
+   * @param context
+   * @param param
+   */
+  setCollapseAction(context: ActionContext<AppState, RootState>, param: any) {
+    console.log(param)
+    context.commit('collapse', param)
+  },
+  /**
+   * 测试 设置menuList
+   * @param context
+   * @param param
+   */
+  setMenuListAction(context: ActionContext<AppState, RootState>, param: any) {
+    console.log(param)
+    http.post(`/netSecur-web/Menu/newNenuList`, param).then((res: any) => {
+      console.log(res)
+      const listData: any = []
+      res.data.forEach((i: any) => {
+        listData.push(i)
+      })
+      context.commit('menuList', listData)
+      return listData
+    })
+  }
+}
+
+const getters: GetterTree<AppState, RootState> = {
+  getName(state: AppState) {
+    return state.name
+  },
+  getCollapse(state: AppState) {
+    return state.isCollapse
+  },
+  getMenuList(state: AppState) {
+    return state.menuList
+  }
+}
+
+const app: Module<AppState, RootState> = {
+  namespaced: true,
+  state: appState,
+  getters,
+  actions,
+  mutations
+}
+
+export default app

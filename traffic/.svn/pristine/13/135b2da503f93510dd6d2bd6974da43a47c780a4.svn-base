@@ -1,0 +1,296 @@
+<!--
+ * @Author: fuping
+ * @Date: 2020-04-16 15:04:59
+ * @LastEditors: fuping
+ * @LastEditTime: 2020-04-17 11:56:13
+ * @Description: 
+ -->
+<template>
+  <div :class="flowUser.main">
+    <div :class="flowUser.dateBox">
+      <VForm :option="formDateOp" ref="formDate"></VForm>
+      <div :class="flowUser.tabsBox">
+        <div :class="flowUser.tabBox">
+          <el-tabs v-model="activeName" @tab-click="handleTabClick">
+            <el-tab-pane label="TOP流量" name="zhu">TOP流量</el-tab-pane>
+            <el-tab-pane label="TOP连接数" name="lian">TOP连接数</el-tab-pane>
+          </el-tabs>
+        </div>
+        <div :class="flowUser.infoBox">
+          <span>
+            未备案IP：
+            <i>{{ totalInfo.unIp || 0 }}</i>
+          </span>
+          <span>
+            活跃IP：
+            <i>{{ totalInfo.acIp || 0 }}</i>
+          </span>
+        </div>
+      </div>
+    </div>
+    <div :class="flowUser.contentBox">
+      <div :class="flowUser.chartBox">
+        <BorderBox title="" type="bar">
+          <!-- <BaseCharts v-if="loadedBar" :option="barOption" :theme="'vintage'" @handlerClick="handlerClickBar"></BaseCharts> -->
+        </BorderBox>
+      </div>
+      <div :class="flowUser.tableBox">
+        <BorderBox title="" type="table">
+          <VTable :option="tableOpt" :height="tableHeight" ref="table"></VTable>
+        </BorderBox>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script lang="ts">
+import { Component, Vue, Ref } from 'vue-property-decorator'
+import { baseBarOption, baseScatterOption } from '@/views/Common/charts/chartsOption'
+import { http } from '@/common/request'
+import BorderBox from '@/components/Common/BorderBox.vue'
+import dayjs from 'dayjs'
+import defaultsDeep from 'lodash/defaultsDeep'
+const UrlTotalNum = '/netSecur-web/userflow/UserFlowDataNum' // 总信息
+const UrlChart = '/netSecur-web/userflow/userFlowT' // 折柱图
+const UrlTable = '/netSecur-web/userflow/userFlowB' // 表格
+const UrlFlowProtocol = '/netSecur-web/userflow/UserFlowPopup' // 弹出框-流量连接数趋势
+const UrlUser = '/netSecur-web/userflow/UserFlowPopupProtocol' // 弹出框-用户访问数据
+interface IDefaultFormItems {
+  beginTime: string
+  endTime: string
+}
+interface IParams {
+  code: number
+  data: number[]
+  message: string
+}
+interface IDefaultTableItems {
+  startDate: string
+  endDate: string
+  sort?: string
+  order?: string
+  page?: number
+  rows?: number
+  ip?: string
+  index?: string
+}
+@Component({
+  components: {
+    BorderBox
+  }
+})
+export default class FlowUser extends Vue {
+  @Ref() readonly formDate!: VP.VForm
+  @Ref() readonly table!: VP.VTable
+  private activeName = 'zhu'
+  // 全局日期选择器
+  private formItems: IDefaultFormItems = {
+    beginTime: dayjs().format('YYYY-MM-DD'),
+    endTime: dayjs().format('YYYY-MM-DD')
+  }
+  // 表格条件选择器
+  private tableformItems: IDefaultTableItems = {
+    startDate: this.formItems.beginTime,
+    endDate: this.formItems.endTime,
+    index: '',
+    sort: 'ip',
+    order: 'desc',
+    page: 1,
+    rows: 5,
+    ip: ''
+  }
+  private totalInfo = {
+    unIp: 0,
+    acIp: 0
+  }
+  private formDateOp: any = {
+    inline: true,
+    btnPos: 'left',
+    items: [
+      {
+        label: '开始时间：',
+        type: 'date',
+        comOpt: {
+          id: 'beginTime',
+          clearable: false,
+          value: dayjs().format('YYYY-MM-DD'),
+          type: 'date',
+          disabled: false,
+          pickOptions: {
+            disabledDate: this.startDisable
+          }
+        }
+      },
+      {
+        label: '结束时间：',
+        type: 'date',
+        comOpt: {
+          id: 'endTime',
+          clearable: false,
+          value: this.formItems.endTime,
+          type: 'date',
+          disabled: false,
+          pickOptions: {
+            disabledDate: this.endDisable
+          }
+        }
+      }
+    ],
+    btns: [
+      {
+        comOpt: {
+          id: 'query',
+          value: '查询',
+          width: 90,
+          disabled: false,
+          click: this.handleQueryBtn
+        }
+      }
+    ]
+  }
+  private tableOpt: any = {
+    stripe: true,
+    column: [
+      { name: '序号', value: 'orderNum', width: 55 },
+      { name: 'IP地址', value: 'ip', width: 130, tooltip: true },
+      { name: '是否备案', value: 'filing', tooltip: true },
+      { name: '上行流量', value: 'upBytes', tooltip: true },
+      { name: '下行流量', value: 'downBytes', tooltip: true },
+      { name: '连接数', value: 'links', tooltip: true },
+      { name: '总流量', value: 'sumBytes', tooltip: true },
+      {
+        name: '操作',
+        value: '',
+        align: 'center',
+        operations: [
+          {
+            label: '详情',
+            type: 'icon',
+            width: 150,
+            iconName: 'el-icon-edit',
+            disCallBack() {
+              return false
+            },
+            handlerClick: (row: any) => {
+              console.log(row)
+            }
+          },
+          {
+            label: '查看',
+            type: 'icon',
+            iconName: 'el-icon-eleme',
+            disCallBack() {
+              return false
+            },
+            handlerClick: (row: any) => {
+              console.log(row)
+            }
+          }
+        ]
+      }
+    ],
+    data: [],
+    pagination: true,
+    pageOpt: {
+      currentPage: 1,
+      total: 0,
+      pageSizes: [10, 20, 30, 40, 50],
+      pageSize: 10
+    }
+  }
+  private tableHeight = '100%'
+  mounted() {
+    this.handleQueryBtn()
+  }
+  // methods
+  // 全局查询按钮
+  handleQueryBtn() {
+    this.formItems = this.formDate.getValue()
+    // this.tableformItems.page = 1
+    this.getTotalData()
+    this.getBarLineData()
+    this.getTableData()
+  }
+  handleTabClick(tab: any) {
+    this.activeName = tab.name
+  }
+  getTotalData() {
+    const params: IDefaultTableItems = {
+      startDate: this.formItems.beginTime,
+      endDate: this.formItems.endTime
+    }
+    http.post<IParams>(UrlTotalNum, params).then((resp: any) => {
+      const { data } = resp
+      this.totalInfo = data[0]
+    })
+  }
+  getBarLineData() {}
+  getTableData() {
+    http.post<IParams>(UrlTable, this.tableformItems).then((resp: any) => {
+      const {
+        data: { rows, total, pageNo }
+      } = resp
+      this.tableOpt.data = rows
+      this.tableOpt.pageOpt.total = total
+      this.tableOpt.pageOpt.currentPage = pageNo
+    })
+  }
+  // 根据结束时间联动，不能大于结束时间
+  startDisable(time: Date) {
+    const endDateVal = this.formDate.getValue().endTime
+    if (endDateVal) {
+      return time.getTime() > new Date(endDateVal).getTime()
+    }
+  }
+  // 根据开始时间联动，只能选择开始时间之前
+  endDisable(time: Date) {
+    const beginDateVal = this.formDate.getValue().beginTime
+    if (beginDateVal) {
+      return time.getTime() < new Date(beginDateVal).getTime()
+    }
+  }
+}
+</script>
+<style>
+i.el-icon-eleme {
+  font-size: 20px;
+  margin-left: 10px;
+}
+i.el-icon-edit {
+  font-size: 20px;
+}
+</style>
+<style module="flowUser">
+.main {
+  width: 100%;
+  height: 100%;
+  text-align: left;
+}
+.dateBox {
+  height: 80px;
+}
+.contentBox {
+  height: calc(100% - 80px);
+}
+.chartBox {
+  height: calc(60% - 10px);
+  margin-bottom: 10px;
+}
+.tableBox {
+  height: 40%;
+}
+.tabsBox {
+  display: flex;
+  justify-content: space-between;
+}
+.infoBox span {
+  font-size: 12px;
+}
+.infoBox span:first-child {
+  margin-right: 20px;
+}
+.infoBox i {
+  color: #409eff;
+  font-weight: 600;
+}
+</style>

@@ -1,0 +1,16 @@
+<template>
+  <div class="Header">
+    <div :class="Header.logo">LOGO</div>
+  </div>
+</template>
+
+<script>
+export default {
+  name: 'Header'
+}
+</script>
+<style module="Header">
+.logo {
+  color: red;
+}
+</style>

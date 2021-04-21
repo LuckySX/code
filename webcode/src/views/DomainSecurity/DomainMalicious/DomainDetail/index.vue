@@ -1,0 +1,490 @@
+<!--
+ * @Description: 
+ * @Autor: niumiaomiao
+ * @Date: 2020-05-27 14:51:15
+ * @LastEditors: niumiaomiao
+ * @LastEditTime: 2020-07-29 13:35:49
+-->
+<template>
+  <div :class="domainDetail.container">
+    <!-- <div :class="domainDetail.topBox"></div> -->
+    <div :class="domainDetail.bottomBox">
+      <VForm :option="formObj" ref="form"></VForm>
+      <VTable
+        class="domainOverview"
+        :option="tableOpt"
+        :height="tableHeight"
+        ref="table"
+        @handleCurrentPageChange="handleCurrentChange"
+        @handleSizePageChange="handleSizeChange"
+      ></VTable>
+    </div>
+    <el-dialog :title="tableTitle" :visible.sync="tableShow" width="70%" :close-on-click-modal="false">
+      <el-button :class="domainDetail.dialogExportBtn" @click="handleDialogExportBtn">导出</el-button>
+      <VTable ref="table1" :option="dialogTableOpt" :height="dialogTableHeight"></VTable>
+    </el-dialog>
+  </div>
+</template>
+
+<script lang="ts">
+import { defaultsDeep } from 'lodash'
+import { stackBarLineOption } from '@/views/Common/charts/doubleLine'
+import { Component, Vue, Ref } from 'vue-property-decorator'
+import { http } from '@/common/request'
+import { replace, trim, assign } from 'lodash'
+import { getCookies } from '@/utils/cookiesUtil'
+import dayjs from 'dayjs'
+import BorderBox from '@/components/Common/BorderBox.vue'
+import number from '@/components/Common/number/index.vue'
+const UrlMalicious = '/newMalice/maliceType'
+const UrlSource = '/newMalice/sourece'
+const UrlDetail = '/newMaliceDetail/domainMonitorDetail'
+const UrlTrend = '/newMaliceDetail/maliceDomainHourTrend'
+const UrlTable = '/newMalice/maliceOverviewList'
+const UrlTableDia = '/newMalice/maliceOverviewTop'
+const UrlExport = process.env.VUE_APP_BASE_API + '/newMalice/maliceOverviewExprot'
+const UrlDialogExport = process.env.VUE_APP_BASE_API + '/newMalice/maliceOverviewTopExport'
+interface IChartsFormItems {
+  startTime: string
+  endTime: string
+}
+interface IDefaultFormItems {
+  domain: string
+  type: string
+  source: string
+  time: string
+  sort: string
+  order: string
+  page: number
+  rows: number
+}
+interface IDomainSelect {
+  name: string
+  value: number
+}
+interface IParams {
+  code: number
+  data: number[]
+  message: string
+}
+// 导出，error提示没有数据不能导出，success可以导出
+enum exportFlag {
+  success = 1,
+  error = 0
+}
+@Component({
+  components: {
+    BorderBox,
+    number
+  }
+})
+export default class DomainDetail extends Vue {
+  @Ref() readonly form!: VP.VForm
+  @Ref() readonly table!: VP.VTable
+  private monitorDetail: any = {
+    maliceDomainCount: 0,
+    maliceDomainVisit: 0,
+    maliceDomainUser: 0,
+    phishingDomainCount: 0,
+    phishingDomainVisit: 0,
+    phishingDomainUser: 0
+  }
+  private startTime = '00:00'
+  private endTime = '24:00'
+  private tableShow = false
+  private tableTitle = ''
+  private tableTitleDomain: string
+  private tableTitleType: string
+  private tableTitleSource: string
+  private timeFormObj: any = {
+    inline: true,
+    items: [
+      {
+        label: '',
+        type: 'date',
+        comOpt: {
+          id: 'startDate',
+          clearable: false,
+          type: 'datetimeMinute',
+          disabled: false,
+          placeholder: ''
+        }
+      }
+    ]
+  }
+  private formObj: any = {
+    inline: true,
+    items: [
+      {
+        label: '域名：',
+        type: 'text',
+        comOpt: {
+          id: 'domain',
+          width: 150,
+          placeholder: '请输入域名'
+        }
+      },
+      {
+        label: '恶意类型：',
+        type: 'select',
+        comOpt: {
+          id: 'type',
+          width: 150,
+          value: '',
+          placeholder: '请选择',
+          data: []
+        }
+      },
+      {
+        label: '来源：',
+        type: 'select',
+        comOpt: {
+          id: 'source',
+          width: 150,
+          value: '',
+          placeholder: '请选择',
+          data: []
+        }
+      },
+      {
+        label: '日期：',
+        type: 'date',
+        comOpt: {
+          id: 'time',
+          clearable: false,
+          value: dayjs()
+            .add(-1, 'day')
+            .format('YYYY-MM-DD'),
+          type: 'date',
+          disabled: false
+        }
+      }
+    ],
+    btns: [
+      {
+        comOpt: {
+          id: 'query',
+          value: '查询',
+          disabled: false,
+          click: this.handleTableQueryBtn
+        }
+      },
+      {
+        comOpt: {
+          id: 'reset',
+          value: '重置',
+          disabled: false,
+          click: this.handleTableResetBtn
+        }
+      },
+      {
+        comOpt: {
+          id: 'export',
+          value: '导出',
+          disabled: false,
+          click: this.handleTableExportBtn
+        }
+      }
+    ]
+  }
+  private tableOpt: any = {
+    stripe: true,
+    sortMode: 'single',
+    sortChange: this.sortChange,
+    defaultSort: [
+      { prop: 'count', order: 'descending' },
+      { prop: 'links', order: '' }
+    ],
+    column: [
+      { name: '序号', value: 'orderNum', width: 55 },
+      { name: '域名', value: 'domain', tooltip: true, minWidth: 120 },
+      { name: '恶意类型', value: 'type', tooltip: true, minWidth: 100 },
+      { name: '来源', value: 'source', tooltip: true, minWidth: 100 },
+      { name: '用户数', value: 'count', tooltip: true, sortable: 'custom', minWidth: 100 },
+      { name: '连接数', value: 'links', tooltip: true, sortable: 'custom', minWidth: 100 },
+      {
+        name: 'TOP10访问用户',
+        value: '',
+        align: 'center',
+        width: 140,
+        operations: [
+          {
+            label: '查看',
+            tooltip: function(row: any) {
+              return row.domain + '-用户访问数据'
+            },
+            disCallBack() {
+              return false
+            },
+            handlerClick: this.dialogTable
+          }
+        ]
+      }
+    ],
+    data: [],
+    pagination: true,
+    pageOpt: {
+      currentPage: 1,
+      total: 0,
+      pageSizes: [10, 20, 30, 40, 50],
+      pageSize: 10
+    }
+  }
+  private dialogTableOpt: any = {
+    stripe: true,
+    sortMode: 'single',
+    column: [
+      { name: 'IP', value: 'ip' },
+      { name: '地理位置', value: 'city', tooltip: true },
+      { name: '访问次数', value: 'links', tooltip: true }
+    ],
+    data: [],
+    pagination: false
+  }
+  private tableHeight = 'calc(100% - 80px)'
+  private dialogTableHeight = '350'
+  // 表格条件选择器
+  private formItems: IDefaultFormItems = {
+    domain: '',
+    type: '',
+    source: '',
+    time: '',
+    sort: 'count',
+    order: 'desc',
+    page: 1,
+    rows: 10
+  }
+  // 弹框表格条件选择器
+  private dialogTableParams = {
+    domain: this.tableTitleDomain,
+    time: '',
+    type: this.tableTitleType
+  }
+  private exportType: exportFlag = exportFlag.error
+  private exportTypeDialog: exportFlag = exportFlag.error
+  mounted() {
+    // 列表数据
+    this.getMalicious()
+    this.getSource()
+    this.init()
+  }
+  init() {
+    this.tableItemFormat()
+    // this.getDetailData()
+    this.getTableData()
+  }
+  // 获取恶意类型
+  getMalicious() {
+    http.post<IDomainSelect>(UrlMalicious).then((resp: any) => {
+      const { data } = resp
+      this.form.setItemData('type', data)
+      this.form.setValue([{ id: 'type', value: '' }])
+    })
+  }
+  // 获取来源类型
+  getSource() {
+    http.post<IDomainSelect>(UrlSource).then((resp: any) => {
+      const { data } = resp
+      this.form.setItemData('source', data)
+      this.form.setValue([{ id: 'source', value: '' }])
+    })
+  }
+  // 监测详情数据
+  // getDetailData() {
+  //   http.post<IParams>(UrlDetail).then((resp: any) => {
+  //     const { data } = resp
+  //     this.monitorDetail = data
+  //   })
+  // }
+  // 获取表格数据
+  getTableData() {
+    // 点击查询按钮表格就恢复默认排序
+    http.post<IParams>(UrlTable, this.formItems).then((resp: any) => {
+      const {
+        data: { rows, total, pageNo }
+      } = resp
+      if (rows.length > 0) {
+        this.exportType = exportFlag.success
+      } else {
+        this.exportType = exportFlag.error
+      }
+      this.tableOpt.data = rows
+      this.tableOpt.pageOpt.total = total
+      this.tableOpt.pageOpt.currentPage = pageNo
+    })
+  }
+  // 表格导出按钮
+  handleTableExportBtn() {
+    if (this.exportType === 0) {
+      this.$message({
+        message: '无数据',
+        type: 'warning'
+      })
+    } else {
+      const { domain, type, source, time, sort, order } = this.formItems
+      window.location.href = `${UrlExport}?type=${type}&sort=${sort}&order=${order}&source=${source}&time=${time}&domain=${domain}&token=${getCookies(
+        'szCode'
+      )}`
+    }
+  }
+  // 弹出框表格导出按钮
+  handleDialogExportBtn() {
+    if (this.exportTypeDialog === 0) {
+      this.$message({
+        message: '无数据',
+        type: 'warning'
+      })
+    } else {
+      const { domain, type, time } = this.dialogTableParams
+      window.location.href = `${UrlDialogExport}?type=${type}&source=${this.tableTitleSource}&time=${time}&domain=${domain}&token=${getCookies(
+        'szCode'
+      )}`
+    }
+  }
+  // 点击页码
+  handleCurrentChange(page: number) {
+    this.formItems.page = page
+    this.getTableData()
+  }
+  handleSizeChange(val: number) {
+    this.formItems.rows = val
+    this.formItems.page = 1
+    this.getTableData()
+  }
+  // 弹框表格数据
+  getTableDiaData() {
+    this.dialogTableParams.domain = this.tableTitleDomain
+    this.dialogTableParams.type = this.tableTitleType
+    this.dialogTableParams.time = this.form.getValue().time
+    http.post<IParams>(UrlTableDia, this.dialogTableParams).then((resp: any) => {
+      const { data } = resp
+      this.exportTypeDialog = data.length > 0 ? exportFlag.success : exportFlag.error
+      this.dialogTableOpt.data = data
+    })
+  }
+  // 表格查询按钮
+  handleTableQueryBtn() {
+    this.tableItemFormat()
+    this.getTableData()
+  }
+  tableItemFormat() {
+    assign(this.formItems, this.form.getValue())
+    if (this.formItems.domain.match('%')) {
+      this.formItems.domain = '%25'
+    }
+    this.formItems.domain = trim(this.formItems.domain)
+    this.formItems.page = 1
+  }
+  // 表格重置按钮
+  handleTableResetBtn() {
+    this.form.clearValue()
+    this.form.setValue([
+      {
+        id: 'time',
+        value: dayjs()
+          .add(-1, 'day')
+          .format('YYYY-MM-DD')
+      }
+    ])
+  }
+  // 排序
+  // 排序
+  sortChange(column: object) {
+    const name: string = Object.keys(column)[0]
+    if (column[name] === 'descending') {
+      this.formItems.order = 'desc'
+    } else {
+      this.formItems.order = 'asc'
+    }
+    this.formItems.sort = name
+    this.getTableData()
+  }
+  dialogTable(row: any) {
+    this.tableShow = true
+    this.tableTitleDomain = row.domain
+    this.tableTitleType = row.type
+    this.tableTitleSource = row.source
+    this.tableTitle = `${this.tableTitleDomain}访问用户TOP10`
+    this.getTableDiaData()
+  }
+}
+</script>
+<style module="domainDetail">
+.container {
+  width: 100%;
+  height: 100%;
+}
+.topBox {
+  width: 100%;
+  height: calc(45% - 10px);
+}
+.bottomBox {
+  width: 100%;
+  margin-top: 10px;
+  height: calc(100% - 10px);
+  background: #fff;
+}
+.numberBox {
+  width: 40%;
+  height: 100%;
+  background: #fff;
+  float: left;
+}
+.barBox {
+  margin-left: 10px;
+  width: calc(60% - 10px);
+  height: 100%;
+  background: #fff;
+  float: left;
+  position: relative;
+}
+.timeBox {
+  position: absolute;
+  top: 5px;
+  right: 80px;
+}
+.searchBox {
+  margin-left: 10px;
+  width: 60px;
+  height: 23px;
+  line-height: 23px;
+  color: #fff;
+  background: #2593f2;
+  text-align: center;
+  font-size: 12px;
+  position: absolute;
+  top: 0;
+  right: -65px;
+}
+.searchBox:hover {
+  cursor: pointer;
+  background: #66b1ff;
+}
+.numberTop {
+  display: flex;
+  width: 100%;
+  height: calc(50% - 1px);
+  border-bottom: 1px solid #e5e4ea;
+}
+.numberBot {
+  display: flex;
+  width: 100%;
+  height: 50%;
+}
+.numberDetail {
+  flex: 1;
+  text-align: center;
+}
+.numFont {
+  height: 40px;
+  line-height: 40px;
+}
+.numberText {
+  margin-top: 5px;
+}
+.dialogExportBtn {
+  position: absolute;
+  top: 20px;
+  right: 50px;
+}
+</style>

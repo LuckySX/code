@@ -1,0 +1,46 @@
+/*
+ * @Author: zhangjipei
+ * @Date: 2020-05-09 14:48:03
+ * @LastEditors: zhangjipei
+ * @LastEditTime: 2020-05-11 22:15:45
+ * @Description:
+ */
+import { getSession } from '@/utils/cookiesUtil'
+import { MessageBox } from 'element-ui'
+
+export const mountRouter = router => {
+  if (router.beforeEach) {
+    router.beforeEach((to, from, next) => {
+      console.log(to, from)
+      if (to.path === '/login') {
+        next()
+      } else {
+        const hasUserId = getSession('accessUserId')
+        // 判断userId是否存在
+        if (!hasUserId) {
+          MessageBox.confirm('您已被登出，请重新登录', '确定登出', {
+            confirmButtonText: '重新登录',
+            confirmButtonClass: 'btn-custom-confrim',
+            type: 'warning'
+          }).then(() => {
+            if (getSession('env') === '0') {
+              next({ path: '/login' })
+            } else {
+              // 需要确定参数、定向地址
+              window.location.href =
+                'https://iam.bamboocloud.com/idp/oauth2/authorize?redirect_uri=https://www.baidu.com&state=xxxx&client_id=xxxxx&response_type=code'
+            }
+          })
+        } else {
+          const hasToken = getSession('token')
+          // 判断token是否存在
+          if (!hasToken) {
+            next({ path: '/login' })
+          } else {
+            next()
+          }
+        }
+      }
+    })
+  }
+}

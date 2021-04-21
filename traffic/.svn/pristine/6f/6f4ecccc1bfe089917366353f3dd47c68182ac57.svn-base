@@ -1,0 +1,18 @@
+
+export const ddosConfig = [
+    {
+        path: '/DDosRealTime',
+        name: 'DDosRealTime',
+        component: () => import('@/views/DDos/RealTime/index.vue')
+    },
+    {
+        path: '/DDosOverall',
+        name: 'DDosOverall',
+        component: () => import('@/views/DDos/DDosOverall/index.vue')
+    },
+    {
+        path: '/DDosDetails',
+        name: 'DDosDetails',
+        component: () => import('@/views/DDos/DDosDetails/index.vue')
+    }
+]

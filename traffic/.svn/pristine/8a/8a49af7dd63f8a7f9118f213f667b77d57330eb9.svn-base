@@ -1,0 +1,1286 @@
+/*
+ * @Author: niumiaomiao
+ * @Date: 2020-03-22 13:55:25
+ * @Description:
+ */
+import echarts from 'echarts'
+const lineColor = '#FFA514'
+const axisLabelColor = '#666'
+const axisLineColor = '#2648BE'
+const colorGroup = ['#FFA514', '#0B56A7', '#DEC300', '#10AC84', '#009AB3', '#2593F3']
+const colorGroupDouble = ['#FFA514', '#FFE000', '#0B56A7', '#078BFF', '#48B5FF', '#00DCFF', '#10AC84', '#63E200']
+const colorLineGroup = ['#FF6767', '#FF9D6B', '#D3C95A', '#55CA69', '#16D8B8', '#67CCFF', '#3E78FF', '#8E67FF', '#B046DB', '#F84F9F']
+const colorBarGrput = ['#0B56A7', '#11AC83', '#FFD61A', '#008FFF']
+
+/*
+ * @Author       fuping
+ * @Date         2020-03-22
+ * @Description  ECHARTS散点图
+ * @param        { Array } renderData [{ name: '80', value: 30 }]
+ *
+ */
+export const baseScatterOption = {
+  color: '#2593F2',
+  tooltip: {
+    show: true,
+    trigger: 'axis',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    padding: [5, 10],
+    textStyle: {
+      color: '#333'
+    },
+    formatter: (data: any) => {
+      return `高峰攻击速率: ${data[0].data[1]}kb/s<br>
+              连接数: ${data[0].data[0]}个`
+    }
+  },
+  grid: {
+    left: 20,
+    right: 70,
+    bottom: 10,
+    top: 30,
+    containLabel: true
+  },
+  xAxis: {
+    name: '连接数/个',
+    axisLabel: {
+      color: axisLabelColor
+    },
+    axisLine: {
+      lineStyle: {
+        color: axisLineColor,
+        opacity: 0.5
+      }
+    },
+    splitLine: {
+      show: false
+    },
+    axisTick: {
+      length: 2
+    }
+  },
+  yAxis: [
+    {
+      name: 'kb/s',
+      type: 'value',
+      position: 'left',
+      offset: '0',
+      axisLabel: {
+        color: axisLabelColor
+      },
+      axisLine: {
+        lineStyle: {
+          color: axisLineColor,
+          opacity: 0.5
+        }
+      },
+      splitLine: {
+        lineStyle: {
+          color: axisLineColor,
+          opacity: 0.1
+        }
+      },
+      axisTick: {
+        length: 2
+      }
+    }
+  ],
+  series: [
+    {
+      type: 'scatter',
+      name: 'left',
+      symbolSize: 10,
+      data: ['无数据']
+      // data: [
+      //   { name: '80', value: 30 },
+      //   { name: '90', value: 80 }
+      // ]
+    }
+  ]
+}
+
+/*
+ * @Author       fuping
+ * @Date         2020-03-22
+ * @Description  ECHARTS柱图
+ * @param        { Array } [{name: '', value: 0}]
+ */
+export const baseBarOption = {
+  color: '#0B56A7',
+  tooltip: {
+    trigger: 'axis',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    padding: [5, 10],
+    textStyle: {
+      color: '#333'
+    },
+    formatter: (data: any) => {
+      return `ip: ${data[0].data.name}<br>
+              攻击总流量: ${data[0].data.info || '无数据'}`
+    }
+  },
+  grid: {
+    left: 10,
+    right: 100,
+    bottom: 0,
+    top: 30,
+    containLabel: true
+  },
+  yAxis: [
+    {
+      type: 'category',
+      position: 'left',
+      offset: '0',
+      // data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+      data: [],
+      axisLabel: {
+        color: axisLabelColor
+      },
+      axisLine: {
+        lineStyle: {
+          color: axisLineColor,
+          opacity: 0.5
+        }
+      },
+      splitLine: {
+        lineStyle: {
+          color: axisLineColor,
+          opacity: 0.1
+        }
+      },
+      axisTick: {
+        length: 2,
+        alignWithLabel: true
+      }
+    },
+    {
+      type: 'category',
+      position: 'right',
+      offset: '0',
+      data: [],
+      axisLabel: {
+        show: false,
+        color: axisLabelColor
+      },
+      axisLine: {
+        show: false
+      },
+      splitLine: {
+        show: false
+      },
+      axisTick: {
+        show: false
+      }
+    }
+  ],
+  xAxis: [
+    {
+      type: 'value',
+      name: '攻击总流量/kb',
+      axisLabel: {
+        color: axisLabelColor
+      },
+      axisLine: {
+        lineStyle: {
+          color: axisLineColor,
+          opacity: 0.5
+        }
+      },
+      splitLine: {
+        show: false
+      },
+      axisTick: {
+        length: 2
+      },
+      splitNumber: 3
+    }
+  ],
+  series: [
+    {
+      name: 'IP',
+      type: 'bar',
+      yAxisIndex: 1,
+      barWidth: 10,
+      itemStyle: {
+        color: '#0B56A7'
+      },
+      // data: [10, 52, 200, 334, 390, 330, 220],
+      data: [],
+      z: 1
+    },
+    {
+      name: '背景',
+      type: 'bar',
+      barWidth: 10,
+      barGap: '-100%',
+      barCategoryGap: '50%',
+      itemStyle: {
+        color: '#F2F2F2'
+      },
+      tooltip: {
+        show: false
+      },
+      // data: [10, 52, 200, 334, 390, 330, 220],
+      data: [],
+      z: 0
+    }
+  ]
+}
+/*
+ * @Author: fuping
+ * @Date: 2020-04-13 15:17:08
+ * @Description:ECHARTS折柱图
+ * @param        { Array } [{name: '', value: 0}]
+ */
+export const barLineOption = {
+  color: '#0B56A7',
+  tooltip: {
+    trigger: 'axis',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    padding: [5, 10],
+    textStyle: {
+      color: '#333'
+    },
+    formatter: (data: any) => {
+      let tip = `ip: ${data[0].name}<br>`
+      for (let i = 0; i < data.length; i++) {
+        tip += `${data[i].seriesName}: ${data[i].value}${data[i].seriesType === 'bar' ? 'GB' : '万次'}<br>`
+      }
+      return tip
+    }
+  },
+  legend: {
+    itemWidth: 15,
+    itemHeight: 3,
+    left: 'center'
+  },
+  grid: {
+    left: 35,
+    right: 35,
+    bottom: 0,
+    top: 30,
+    containLabel: true
+  },
+  xAxis: [
+    {
+      axisLabel: {
+        color: axisLabelColor
+      },
+      axisLine: {
+        lineStyle: {
+          color: axisLineColor,
+          opacity: 0.5
+        }
+      },
+      splitLine: {
+        show: false
+      },
+      axisTick: {
+        length: 2
+      },
+      splitNumber: 3,
+      data: ['无数据']
+    }
+  ],
+  yAxis: [
+    {
+      name: '',
+      type: 'value',
+      position: 'left',
+      axisLabel: {
+        color: axisLabelColor
+      },
+      axisLine: {
+        lineStyle: {
+          color: axisLineColor,
+          opacity: 0.5
+        }
+      },
+      splitLine: {
+        lineStyle: {
+          color: axisLineColor,
+          opacity: 0.1
+        }
+      },
+      axisTick: {
+        length: 2,
+        alignWithLabel: true
+      }
+    },
+    {
+      name: '',
+      type: 'value',
+      position: 'right',
+      axisLabel: {
+        color: axisLabelColor
+      },
+      axisLine: {
+        lineStyle: {
+          color: axisLineColor,
+          opacity: 0.5
+        }
+      },
+      splitLine: {
+        lineStyle: {
+          color: axisLineColor,
+          opacity: 0.1
+        }
+      },
+      axisTick: {
+        length: 2,
+        alignWithLabel: true
+      }
+    }
+  ],
+  series: [
+    {
+      name: '流量',
+      type: 'bar',
+      yAxisIndex: 0,
+      barWidth: 10,
+      itemStyle: {
+        color: '#0B56A7'
+      },
+      data: []
+    },
+    {
+      name: '连接数',
+      type: 'line',
+      yAxisIndex: 1,
+      smooth: true, //平滑曲线显示
+      showSymbol: false,
+      itemStyle: {
+        color: lineColor
+      },
+      lineStyle: {
+        color: lineColor
+      },
+      data: []
+    }
+  ]
+}
+/*
+ * @Author: fuping
+ * @Date: 2020-04-18 23:23:51
+ * @Description:ECHARTS堆叠柱图折线图
+ */
+export const stackBarLineOption = {
+  color: '#0B56A7',
+  tooltip: {
+    trigger: 'axis',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    padding: [5, 10],
+    textStyle: {
+      color: '#333'
+    },
+    formatter: (data: any) => {
+      let tip = `时间: ${data[0].name || '无数据'}<br>`
+      for (let i = 0; i < data.length; i++) {
+        tip += `${data[i].seriesName}: ${data[i].value || '无数据'}<br>`
+      }
+      return tip
+    }
+  },
+  legend: {
+    itemWidth: 15,
+    itemHeight: 3,
+    left: 'center'
+  },
+  grid: {
+    left: 30,
+    right: 30,
+    bottom: 30,
+    top: 30,
+    containLabel: true
+  },
+  xAxis: [
+    {
+      axisLabel: {
+        color: axisLabelColor
+      },
+      axisLine: {
+        lineStyle: {
+          color: axisLineColor,
+          opacity: 0.5
+        }
+      },
+      splitLine: {
+        show: false
+      },
+      axisTick: {
+        length: 2
+      },
+      splitNumber: 3,
+      data: []
+    }
+  ],
+  yAxis: [
+    {
+      name: '',
+      type: 'value',
+      position: 'left',
+      axisLabel: {
+        color: axisLabelColor
+      },
+      axisLine: {
+        lineStyle: {
+          color: axisLineColor,
+          opacity: 0.5
+        }
+      },
+      splitLine: {
+        lineStyle: {
+          color: axisLineColor,
+          opacity: 0.1
+        }
+      },
+      axisTick: {
+        length: 2,
+        alignWithLabel: true
+      }
+    },
+    {
+      name: '',
+      type: 'value',
+      position: 'right',
+      axisLabel: {
+        color: axisLabelColor
+      },
+      axisLine: {
+        lineStyle: {
+          color: axisLineColor,
+          opacity: 0.5
+        }
+      },
+      splitLine: {
+        lineStyle: {
+          color: axisLineColor,
+          opacity: 0.1
+        }
+      },
+      axisTick: {
+        length: 2,
+        alignWithLabel: true
+      }
+    }
+  ],
+  series: [
+    {
+      name: '上行流量',
+      type: 'bar',
+      stack: '总量',
+      yAxisIndex: 0,
+      barWidth: 10,
+      itemStyle: {
+        color: '#0B56A7'
+      },
+      // data: [10, 52, 200, 334, 390, 330, 220]
+      data: []
+    },
+    {
+      name: '下行流量',
+      type: 'bar',
+      stack: '总量',
+      yAxisIndex: 0,
+      barWidth: 10,
+      itemStyle: {
+        color: '#11AC83'
+      },
+      // data: [10, 52, 200, 334, 390, 330, 220]
+      data: []
+    },
+    {
+      name: '连接数',
+      type: 'line',
+      yAxisIndex: 1,
+      smooth: true, //平滑曲线显示
+      showSymbol: false,
+      itemStyle: {
+        color: lineColor
+      },
+      lineStyle: {
+        color: lineColor
+      },
+      // data: [10, 52, 200, 334, 390, 330, 220],
+      data: []
+    }
+  ]
+}
+/*
+ * @Author       fuping
+ * @Date         2020-03-31
+ * @Description  双pie
+ * @param        { Array } [{name: '', value: 0}]
+ */
+export const doublePieOption = {
+  tooltip: {
+    trigger: 'item',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    padding: [5, 10],
+    textStyle: {
+      color: '#333'
+    },
+    formatter: (data: any) => {
+      return `${data.seriesName}<br>
+              ${data.name}: ${data.data.info}（${data.percent}%）`
+    }
+  },
+  color: colorGroupDouble,
+  legend: {
+    orient: 'vertical',
+    itemWidth: 15,
+    itemHeight: 3,
+    right: 10
+  },
+  series: [
+    {
+      type: 'pie',
+      name: '运营商',
+      center: ['35%', '50%'],
+      radius: [0, '45%'],
+      itemStyle: {
+        normal: {
+          borderColor: '#fff',
+          borderWidth: 2
+        }
+      },
+      label: {
+        show: false
+      },
+      data: []
+    },
+    {
+      type: 'pie',
+      name: '协议TOP5',
+      center: ['35%', '50%'],
+      radius: ['55%', '70%'],
+      label: {
+        show: false
+      },
+      data: []
+    }
+  ]
+}
+/*
+ * @Author       fuping
+ * @Date         2020-03-31
+ * @Description  点地图
+ * @param        { Array } [{name: '', value: 0}]
+ */
+export const scatterMapOption = {
+  tooltip: {
+    trigger: 'item',
+    triggerOn: 'click',
+    alwaysShowContent: false,
+    backgroundColor: '#fff',
+    padding: 10,
+    textStyle: {
+      color: '#000'
+    },
+    enterable: true,
+    confine: true,
+    formatter: (params: any) => {
+      // status:1 未启用#008CFF
+      // status:0 正常#00CB1D
+      const statusColor = ['#00CB1D', '#008CFF']
+      const data = params.data
+      const url = window.location.href
+      const goToUrl = url.split('#')[0] + `#/KeyAsset?type=companyId&value=${data.companyId}`
+      const status = data.dipUsed === 1 ? '启用' : '未启用'
+      const tooltipDom = `<div id='tooltipBox' style='min-width: 220px; box-shadow: 0 10px 20px 0 rgba(0,0,0,.1); padding: 20px; border-radius: 6px; box-sizing: border-box;'>
+        <div style='border-bottom: 1px solid #eee; padding: 5px 0;'>IP资产信息</div>
+        <div style='display: flex; justify-content: space-between; margin: 5px 0;'><span>IP：${data.name}</span><span style='color: ${
+        statusColor[data.dipUsed]
+      }'>${status}</span></div>
+        <div>域名：<span style='color: #666;'>${data.domain}</span></div>
+        <div style='margin: 5px 0'>流量：<span style='color: #666;'>${data.volume}MB</span></div>
+        <div >访问用户IP数：<span style='color: #666'>${data.sipCnt}</span></div>
+        <div style='margin: 5px 0'>IP网段：<span style='color: #666'>${data.segment}</span></div>
+        <div style='margin: 0 0 10px'>所属单位：<span style='color: #666'>${data.dipCompanyName}</span></div>
+        <div style='background: #2593F4; padding: 3px 10px; text-align: center;'><a style='color: #fff; cursor: pointer;' href='${goToUrl}'>点击查看详情</a></div>
+      </div>`
+      return tooltipDom
+    }
+  },
+  geo: {
+    map: 'shenzhen',
+    layoutCenter: ['50%', '55%'],
+    layoutSize: '150%',
+    aspectScale: 1,
+    zoom: 1.5,
+    label: {
+      emphasis: {
+        show: false
+      }
+    },
+    roam: true,
+    itemStyle: {
+      normal: {
+        borderColor: '#0290ff',
+        borderWidth: 1,
+        areaColor: {
+          type: 'linear',
+          x: 0,
+          y: 0,
+          x2: 0,
+          y2: 1,
+          colorStops: [
+            {
+              offset: 0,
+              color: '#1864B6' // 0% 处的颜色
+            },
+            {
+              offset: 1,
+              color: '#6AC1F9' // 100% 处的颜色
+            }
+          ],
+          global: false // 缺省为 false
+        }
+      },
+      emphasis: {
+        areaColor: '#389BB7',
+        borderWidth: 1,
+        borderColor: '#1497fc'
+      }
+    },
+    data: [],
+    silent: true
+  },
+  series: [
+    {
+      type: 'effectScatter',
+      coordinateSystem: 'geo',
+      zlevel: 3,
+      rippleEffect: {
+        brushType: 'fill',
+        period: 6,
+        scale: 4
+      },
+      symbolSize: 5,
+      itemStyle: {
+        color: '#FFE100'
+      },
+      data: [
+        // { name: 'xiaobaicai', value: [114.13, 22.65], ip: '172.18.18', status: 0 },
+        // { name: 'xiaobaicai1', value: [114.23, 22.75], ip: '172.18.18', status: 1 }
+      ]
+    }
+  ]
+}
+/**
+ * @Author: shixiao
+ * @description: 饼图
+ * @param {type}
+ * @return:
+ */
+export const pieOption = {
+  tooltip: {
+    trigger: 'item',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    padding: [5, 10],
+    textStyle: {
+      color: '#333'
+    },
+    formatter: '{b} : {d}%'
+  },
+  grid: {
+    top: 20,
+    containLabel: true
+  },
+  legend: {
+    show: false,
+    orient: 'vertical',
+    itemWidth: 15,
+    itemHeight: 3,
+    itemGap: 10,
+    right: 0,
+    top: 10,
+    bottom: 0,
+    formatter: (name: any) => {
+      console.log(name)
+    },
+    data: []
+  },
+  color: colorGroup,
+  series: [
+    {
+      type: 'pie',
+      radius: '55%',
+      center: ['50%', '50%'],
+      data: [],
+      labelLine: {
+        length: 2
+      },
+      emphasis: {
+        itemStyle: {
+          shadowBlur: 10,
+          shadowOffsetX: 0,
+          shadowColor: 'rgba(0, 0, 0, 0.5)'
+        }
+      }
+    }
+  ]
+}
+/**
+ * @Author: shixiao
+ * @description: 折线
+ * @param {type}
+ * @return:
+ */
+export const lineOption = {
+  xAxis: {
+    type: 'category',
+    data: [],
+    axisLabel: {
+      color: axisLabelColor
+    },
+    axisLine: {
+      lineStyle: {
+        color: axisLineColor,
+        opacity: 0.5
+      }
+    }
+  },
+  tooltip: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    padding: [5, 10],
+    textStyle: {
+      color: '#333'
+    },
+    formatter: (params: any) => {
+      return `时间：${params.name}</br>
+                      流量值：${params.data.info}`
+    }
+  },
+  grid: {
+    left: 10,
+    right: '4%',
+    bottom: 0,
+    top: 30,
+    containLabel: true
+  },
+  yAxis: {
+    type: 'value',
+    name: 'B',
+    axisLabel: {
+      color: axisLabelColor
+    },
+    axisLine: {
+      lineStyle: {
+        color: axisLineColor,
+        opacity: 0.5
+      }
+    },
+    splitLine: {
+      lineStyle: {
+        color: axisLineColor,
+        opacity: 0.1
+      }
+    }
+  },
+  series: [
+    {
+      data: [],
+      type: 'line',
+      smooth: true
+    }
+  ]
+}
+/**
+ * @Author: niumiaomiao
+ * @description: 地图
+ * @param {type}
+ * @return:
+ */
+export const mapOption = {
+  tooltip: {
+    trigger: 'item',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    padding: [5, 10],
+    textStyle: {
+      color: '#333'
+    }
+  },
+  geo: {
+    map: 'world',
+    layoutCenter: ['50%', '50%'],
+    layoutSize: '190%',
+    label: {
+      emphasis: {
+        show: false
+      }
+    },
+    roam: true,
+    itemStyle: {
+      normal: {
+        borderColor: '#0290ff',
+        borderWidth: 1,
+        areaColor: {
+          type: 'linear',
+          x: 0,
+          y: 0,
+          x2: 0,
+          y2: 1,
+          colorStops: [
+            {
+              offset: 0,
+              color: '#1864B6' // 0% 处的颜色
+            },
+            {
+              offset: 1,
+              color: '#6AC1F9' // 100% 处的颜色
+            }
+          ],
+          global: false // 缺省为 false
+        }
+      },
+      emphasis: {
+        areaColor: '#389BB7',
+        borderWidth: 1,
+        borderColor: '#1497fc'
+      }
+    },
+    data: [],
+    silent: true
+  },
+  series: [
+    {
+      type: 'effectScatter',
+      coordinateSystem: 'geo',
+      zlevel: 3,
+      rippleEffect: {
+        brushType: 'fill',
+        period: 6,
+        scale: 4
+      },
+      tooltip: {
+        show: false
+      },
+      symbolSize: 10,
+      itemStyle: {
+        normal: {
+          color: '#fff',
+          borderColor: 'rgba(0,80,104,0.5)'
+        }
+      },
+      data: []
+    },
+    {
+      tooltip: {
+        show: false
+      },
+      type: 'effectScatter',
+      coordinateSystem: 'geo',
+      zlevel: 3,
+      rippleEffect: {
+        brushType: 'fill',
+        period: 6,
+        scale: 4
+      },
+      symbolSize: 1,
+      itemStyle: {
+        normal: {
+          color: '#fff',
+          borderColor: 'rgba(0,80,104,0.5)'
+        }
+      },
+      data: []
+    },
+    {
+      name: 'lines',
+      type: 'lines',
+      zlevel: 2,
+      symbolSize: 10,
+      effect: {
+        show: true,
+        period: 3,
+        trailLength: 0.5,
+        constantSpeed: 140,
+        color: '#FDFD02',
+        symbol: 'rect', //ECharts 提供的标记类型包括 'circle', 'rect', 'roundRect', 'triangle', 'diamond', 'pin', 'arrow'
+        symbolSize: 4
+      },
+      lineStyle: {
+        normal: {
+          color: '#FDFD02',
+          width: 0.8,
+          type: 'solid',
+          opacity: 0.2,
+          //shadowBlur:10,
+          curveness: 0.2
+        }
+      },
+      tooltip: {
+        formatter: (params: any) => {
+          return `攻击来源：${params.data.fromName}</br>
+                          攻击目标：${params.data.toName}</br>
+                          攻击流量: ${params.data.attackflow}<br/>
+                          攻击占比：${params.data.proportion}`
+        }
+      },
+      data: []
+    }
+  ]
+}
+/**
+ * @description:  双折线
+ * @param {type}
+ * @return:
+ * @author: niumiaomiao
+ */
+export const lineDoubleOption = {
+  tooltip: {
+    trigger: 'axis',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    padding: [5, 10],
+    textStyle: {
+      color: '#333'
+    },
+    formatter: (data: any) => {
+      return ` ${data[0].name}<br>
+              攻击流量: ${data[0].data}MB<br>
+              攻击人数: ${data[1].data}人`
+    }
+  },
+  grid: {
+    left: 10,
+    right: 10,
+    bottom: 5,
+    top: 30,
+    containLabel: true
+  },
+  xAxis: [
+    {
+      boundaryGap: false,
+      axisLine: {
+        show: true,
+        lineStyle: {
+          color: 'rgba(0,0,0,0.1)'
+        }
+      },
+      axisLabel: {
+        color: '#666'
+      },
+      axisTick: {
+        show: false
+      },
+      splitLine: {
+        show: true,
+        lineStyle: {
+          color: 'rgba(0,0,0,0.1)'
+        }
+      },
+      data: []
+    }
+  ],
+  yAxis: [
+    {
+      type: 'value',
+      name: '(MB)',
+      nameTextStyle: {
+        color: 'rgba(11, 86, 167, 0.3)',
+        padding: [0, 40, 0, 0]
+      },
+      axisLine: {
+        lineStyle: {
+          color: '#0B56A7'
+        }
+      },
+      splitLine: {
+        show: false
+      }
+    },
+    {
+      type: 'value',
+      name: '(人)',
+      nameTextStyle: {
+        color: 'rgba(255,165,20,0.3)',
+        padding: [0, 0, 0, 40]
+      },
+      axisLabel: {
+        formatter: '{value}',
+        textStyle: {
+          color: '#FFA514'
+        }
+      },
+      axisLine: {
+        lineStyle: {
+          color: '#FFA514'
+        }
+      },
+      splitLine: {
+        show: false
+      }
+    }
+  ],
+  series: [
+    {
+      name: '攻击流量',
+      type: 'line',
+      stack: '总量',
+      yAxisIndex: 0,
+      symbol: 'circle',
+      symbolSize: 0,
+      itemStyle: {
+        normal: {
+          color: '#0B56A7',
+          lineStyle: {
+            color: '#0B56A7',
+            width: 1
+          }
+        }
+      },
+      data: []
+    },
+    {
+      name: '攻击人数',
+      type: 'line',
+      stack: '总量',
+      yAxisIndex: 1,
+      symbol: 'circle',
+      symbolSize: 0,
+      itemStyle: {
+        normal: {
+          color: '#FFA514',
+          lineStyle: {
+            color: '#FFA514',
+            width: 1
+          }
+        }
+      },
+      data: []
+    }
+  ]
+}
+/**
+ * @description: 堆叠柱图
+ * @param {type}
+ * @return:
+ * @author: niumiaomiao
+ */
+export const barStackOption = {
+  tooltip: {
+    trigger: 'axis',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    padding: [5, 10],
+    textStyle: {
+      color: '#333'
+    },
+    formatter: (data: any) => {
+      if (data[0].name !== '无数据') {
+        let tip = `${data[0].name}<br>`
+        for (let i = 0; i < data.length; i++) {
+          tip += `${data[i].seriesName}: ${data[i].value}${data[i].data.unit || ''}<br>`
+        }
+        return tip
+      }
+    }
+  },
+  legend: {
+    left: 'center',
+    itemWidth: 22,
+    itemHeight: 4,
+    itemGap: 13,
+    data: []
+  },
+  grid: {
+    left: 30,
+    right: 30,
+    bottom: 0,
+    top: 50,
+    containLabel: true
+  },
+  yAxis: {
+    name: '流量/GB',
+    type: 'value',
+    // position: 'left',
+    offset: '0',
+    axisLabel: {
+      color: axisLabelColor
+    },
+    axisLine: {
+      lineStyle: {
+        color: axisLineColor,
+        opacity: 0.5
+      }
+    },
+    splitLine: {
+      lineStyle: {
+        color: axisLineColor,
+        opacity: 0.1
+      }
+    },
+    axisTick: {
+      length: 2
+    }
+  },
+  xAxis: {
+    axisLabel: {
+      color: axisLabelColor
+    },
+    axisLine: {
+      lineStyle: {
+        color: axisLineColor,
+        opacity: 0.5
+      }
+    },
+    splitLine: {
+      show: false
+    },
+    axisTick: {
+      length: 2
+    },
+    data: ['无数据']
+  },
+  series: []
+}
+export const getBarStackData = function(data: any): any {
+  let seriesData: any[] = []
+  let legendData: Array<string> = []
+  let xAxisData: Array<string> = []
+  if (data && data != undefined && data.length > 0) {
+    data[0].forEach((i: any) => {
+      xAxisData.push(i.name)
+    })
+    data.forEach((item: any, index: any) => {
+      legendData.push(item[0].category)
+      seriesData.push({
+        name: item[0].category,
+        type: 'bar',
+        stack: '总量',
+        barWidth: '30px',
+        color: colorBarGrput[index],
+        data: item
+      })
+    })
+  }
+  return { legendData, xAxisData, seriesData }
+}
+/**
+ * @description: 堆叠区域图
+ * @param {type}
+ * @return:
+ * @author: fuping
+ */
+export const areaStackOption = {
+  tooltip: {
+    trigger: 'axis',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    padding: [5, 10],
+    textStyle: {
+      color: '#333'
+    },
+    formatter: (data: any) => {
+      if (data[0].name !== '无数据') {
+        let tip = `${data[0].name}<br>`
+        for (let i = 0; i < data.length; i++) {
+          tip += `${data[i].seriesName}: ${data[i].value}${data[i].data.unit || ''}<br>`
+        }
+        return tip
+      }
+    }
+  },
+  legend: {
+    left: 'center',
+    itemWidth: 22,
+    itemHeight: 4,
+    itemGap: 13,
+    width: '90%',
+    type: 'scroll',
+    data: []
+  },
+  grid: {
+    left: 35,
+    right: 30,
+    bottom: 0,
+    top: 30,
+    containLabel: true
+  },
+  xAxis: {
+    type: 'category',
+    boundaryGap: false,
+    axisLabel: {
+      color: axisLabelColor
+    },
+    axisLine: {
+      lineStyle: {
+        color: axisLineColor,
+        opacity: 0.5
+      }
+    },
+    splitLine: {
+      show: false
+    },
+    data: ['无数据']
+  },
+  yAxis: {
+    name: '流量/GB',
+    type: 'value',
+    axisLabel: {
+      color: axisLabelColor
+    },
+    axisLine: {
+      lineStyle: {
+        color: axisLineColor,
+        opacity: 0.5
+      }
+    },
+    splitLine: {
+      lineStyle: {
+        color: axisLineColor,
+        opacity: 0.1
+      }
+    },
+    axisTick: {
+      length: 2
+    }
+  },
+  series: []
+}
+export const getAreaStackData = function(data: any): any {
+  let seriesData: any[] = []
+  let legendData: Array<string> = []
+  let xAxisData: Array<string> = []
+  if (data && data != undefined && data.length > 0) {
+    data[0].forEach((i: any) => {
+      xAxisData.push(i.name)
+    })
+    data.forEach((item: any, index: any) => {
+      legendData.push(item[0].category)
+      seriesData.push({
+        name: item[0].category,
+        type: 'line',
+        smooth: true,
+        stack: '总量',
+        showSymbol: false,
+        lineStyle: {
+          normal: {
+            width: 2
+          }
+        },
+        itemStyle: {
+          normal: {
+            color: colorLineGroup[index],
+            lineStyle: {
+              width: 1,
+              type: 'solid'
+            }
+          }
+        },
+        data: item
+      })
+    })
+  }
+  return { legendData, xAxisData, seriesData }
+}

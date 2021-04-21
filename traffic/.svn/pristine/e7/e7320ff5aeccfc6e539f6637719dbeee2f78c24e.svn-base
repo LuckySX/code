@@ -1,0 +1,8 @@
+export {}
+declare global {
+  interface Window {
+    attachEvent(type: string, callback: any): void
+    detachEvent(type: string, callback: any): void
+    md5(value: string, key?: string, bol?: boolean): string
+  }
+}

@@ -1,0 +1,276 @@
+<!--
+ * @Author: fuping
+ * @Date: 2020-05-19 22:00:35
+ * @LastEditors: fuping
+ * @LastEditTime: 2020-08-28 12:31:57
+ * @Description: 
+-->
+<template>
+  <div :class="domainOverview.container">
+    <div :class="domainOverview.tablePart">
+      <BorderBox title="近一周恶意域名访问" type="bar">
+        <BaseCharts :option="barOption"></BaseCharts>
+      </BorderBox>
+    </div>
+    <div :class="domainOverview.chartPart">
+      <div :class="domainOverview.chartBox">
+        <BorderBox title="今日恶意类型占比" type="pie">
+          <BaseCharts :option="pieOption"></BaseCharts>
+        </BorderBox>
+      </div>
+      <div :class="domainOverview.chartBox">
+        <BorderBox title="今日恶意域名小时趋势图" type="line">
+          <BaseCharts :option="stackBarLineOp" :theme="'vintage'"></BaseCharts>
+        </BorderBox>
+      </div>
+    </div>
+  </div>
+</template>
+<script lang="ts">
+import { doubleBarOption } from '@/views/Common/charts/doubleBarOption'
+import { pieOption } from '@/views/Common/charts/pieOption'
+import { stackBarLineOption } from '@/views/Common/charts/doubleLine'
+import { Component, Vue, Ref } from 'vue-property-decorator'
+import BorderBox from '@/components/Common/BorderBox.vue'
+import { getCookies } from '@/utils/cookiesUtil'
+import { defaultsDeep, trim, assign } from 'lodash'
+import { http } from '@/common/request'
+const UrlMalicious = '/newMalice/maliceType'
+const UrlSource = '/newMalice/sourece'
+const UrlBar = '/newMalice/weekAccessStatistics'
+const UrlPie = '/newMalice/maliceTypeProportion'
+const UrlTrend = '/newMaliceDetail/maliceDomainHourTrend'
+interface IDefaultTableItems {
+  domain: string
+  type: string
+  source: string
+  sort: string
+  order: string
+  page: number
+  rows: number
+}
+interface IDomainBar {
+  xAxisData: string[]
+  data: []
+}
+interface IDomainPie {
+  name: string
+  value: number
+}
+interface IDomainTable {
+  rows: number[]
+  total: number
+}
+// 导出，error提示没有数据不能导出，success可以导出
+enum exportFlag {
+  success = 1,
+  error = 0
+}
+@Component({
+  components: {
+    BorderBox
+  }
+})
+export default class Overall extends Vue {
+  // 表格条件选择器
+  private tableformItems: IDefaultTableItems = {
+    domain: '',
+    type: '',
+    source: '',
+    sort: 'count',
+    order: 'desc',
+    page: 1,
+    rows: 5
+  }
+  private newPeiOp = {
+    tooltip: {
+      show: false
+    },
+    legend: {
+      show: true,
+      orient: 'horizontal',
+      itemWidth: 3,
+      itemHeight: 15,
+      left: 'center',
+      right: 'auto',
+      top: 'auto',
+      bottom: 0
+    },
+    series: [
+      {
+        type: 'pie',
+        center: ['50%', '40%'],
+        radius: ['40%', '60%'],
+        avoidLabelOverlap: false,
+        itemStyle: {
+          normal: {
+            borderColor: '#fff',
+            borderWidth: 2
+          }
+        },
+        label: {
+          show: false,
+          position: 'center'
+        },
+        emphasis: {
+          label: {
+            show: true,
+            formatter: params => {
+              return params.percent + '%\n' + params.name
+            }
+          }
+        },
+        data: []
+      }
+    ]
+  } as any
+  private newstackBarLineOp = {
+    yAxis: [
+      {
+        name: '用户数/人'
+      },
+      {
+        name: '连接数/万次'
+      }
+    ]
+  } as any
+  private newBarOp = {
+    tooltip: {
+      formatter: (data: any) => {
+        let tip = `时间: ${data[0].name}<br>`
+        for (let i = 0; i < data.length; i++) {
+          const unit = i === 0 ? '万次' : '人'
+          tip += `${data[i].seriesName}: ${data[i].value}${unit}<br>`
+        }
+        return tip
+      }
+    },
+    yAxis: [
+      {},
+      {
+        name: '用户数/人'
+      }
+    ]
+  } as any
+  private stackBarLineOp: any = defaultsDeep(this.newstackBarLineOp, stackBarLineOption)
+  private barOption: any = defaultsDeep(this.newBarOp, doubleBarOption)
+  private pieOption: any = defaultsDeep(this.newPeiOp, pieOption)
+  private exportType: exportFlag = exportFlag.error
+  mounted() {
+    this.init()
+  }
+  // methods
+  init() {
+    this.getBarData()
+    this.getPieData()
+    this.getChartData()
+  }
+  // 格式化参数
+  getParmas(data: any) {
+    let parmas: any = ''
+    for (const key in data) {
+      parmas += `${key}=${data[key]}&`
+    }
+    return parmas.slice(0, -1)
+  }
+  // 获取柱图数据
+  getBarData() {
+    http.post<IDomainBar>(UrlBar).then((resp: any) => {
+      const {
+        data: [{ xAxisData, data }]
+      } = resp
+      this.barOption.series[0].data = data[0]
+      this.barOption.series[1].data = data[1]
+      this.barOption.xAxis.data = xAxisData
+    })
+  }
+  // 获取饼图数据
+  getPieData() {
+    http.post<IDomainPie>(UrlPie).then((resp: any) => {
+      const { data } = resp
+      if (data.length === 0) {
+        data.push({
+          name: '无数据',
+          value: 0
+        })
+      }
+      if (data.length > 0) {
+        const legend = data.map(v => {
+          if (v.name === '恶意域名') {
+            v.name = '恶意代码域名'
+          }
+          return v.name
+        })
+        this.pieOption.legend.data = legend
+        this.pieOption.series[0].data = data
+      }
+    })
+  }
+  // 获取趋势图数据
+  getChartData() {
+    http.post<IDomainPie>(UrlTrend).then((resp: any) => {
+      const { data } = resp
+      if (data.length === 0) {
+        data.push({
+          name: '无数据',
+          value: 0
+        })
+      }
+      const xAxisData: number[] = []
+      const barData1 = data.filter((i: any) => {
+        return i.category === '恶意代码域名用户数'
+      })
+      const barData2 = data.filter((i: any) => {
+        return i.category === '钓鱼域名用户数'
+      })
+      const lineData1 = data.filter((i: any) => {
+        return i.category === '恶意代码域名连接数'
+      })
+      const lineData2 = data.filter((i: any) => {
+        return i.category === '钓鱼域名连接数'
+      })
+      barData1.forEach((i: any) => {
+        xAxisData.push(i.name)
+      })
+      this.stackBarLineOp.xAxis[0].data = xAxisData
+      this.stackBarLineOp.series[0].data = barData1
+      this.stackBarLineOp.series[1].data = barData2
+      this.stackBarLineOp.series[2].data = lineData1
+      this.stackBarLineOp.series[3].data = lineData2
+    })
+  }
+}
+</script>
+<style module="domainOverview">
+.container {
+  width: 100%;
+  height: 100%;
+  text-align: left;
+}
+.chartPart {
+  display: flex;
+  width: 100%;
+  height: calc(45% - 10px);
+  margin-bottom: 10px;
+  justify-content: space-between;
+}
+.chartBox:nth-child(1) {
+  width: calc(35% - 5px);
+  height: 100%;
+}
+.chartBox:nth-child(2) {
+  width: calc(65% - 5px);
+  height: 100%;
+}
+.tablePart {
+  width: 100%;
+  height: 55%;
+  overflow-x: scroll;
+}
+.tableForm {
+  position: relative;
+}
+.tableContent {
+  height: calc(100% - 40px);
+}
+</style>

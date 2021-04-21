@@ -1,0 +1,30 @@
+import { Module, MutationTree, ActionTree, GetterTree } from 'vuex'
+import { RootState } from './../store'
+
+export interface LoginInfoState {
+  token?: string
+}
+
+const mutations: MutationTree<LoginInfoState> = {
+  loginSuccess(state: LoginInfoState, payload: any) {
+    state.token = payload.token
+  }
+}
+
+const actions: ActionTree<LoginInfoState, RootState> = {}
+
+const getters: GetterTree<LoginInfoState, RootState> = {}
+
+const loginInfoState: LoginInfoState = {
+  token: undefined
+}
+
+const user: Module<LoginInfoState, RootState> = {
+  namespaced: true,
+  state: loginInfoState,
+  getters,
+  actions,
+  mutations
+}
+
+export default user

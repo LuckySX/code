@@ -1,0 +1,5 @@
+# Base api
+# Remeber to change this to your production server address
+# Here I used my mock server for this project
+// 如果更换接口地址，vuex下store/modules/user 里hostUrl也要相应更改，该变量为登录退出后给竹云携带的参数
+VUE_APP_BASE_API = 'https://10.253.241.140/netSecur-web'

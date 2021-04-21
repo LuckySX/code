@@ -1,0 +1,92 @@
+<template>
+  <div :class="border.main">
+    <div :class="border.title" v-if="title != ''">
+      <!-- <span :class="border.icon"></span> -->
+      <span :class="[border.icon, imgStyle()]"></span>
+    {{title}}</div>
+    <div :class="border.content">
+      <slot></slot>
+    </div>
+  </div>
+</template>
+
+<script lang="ts">
+/**
+ * @description border通用组件
+ * @author fuping
+ * @since 2020/03/19
+ * @Props  {type: string} 图标：  line折线图/bar柱图/pie饼图/scatter散点图/relation关系图/heat热力图/map地图/table表格/info列表
+ */
+import { Component, Prop, Vue } from 'vue-property-decorator'
+@Component({})
+export default class BorderCon extends Vue {
+  @Prop() private title!: string
+  @Prop() private type!: string
+  /**
+   * 计算属性定义
+   */
+  imgStyle() {
+    let name: string = 'i' + this.type
+    return `border.${name}`
+  }
+  mounted() {}
+}
+</script>
+
+<style module="border">
+.main {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 10px 18px;
+  background: #FFF;
+  box-shadow: 0 3px 10px 0 rgba(0,0,0,0.06);
+  box-sizing: border-box;
+}
+.title {
+  font-size: 18px;
+  color: #2747BE;
+  padding-bottom: 10px;
+  text-align: left;
+  border-bottom: 1px solid #F4F3F8;
+  
+}
+.icon {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  margin-right: 5px;
+}
+.iline {
+  background: url('../../assets/images/border/title_line.png') no-repeat center;
+}
+.ibar {
+  background: url('../../assets/images/border/title_bar.png') no-repeat center;
+}
+.iheat {
+  background: url('../../assets/images/border/title_heat.png') no-repeat center;
+}
+.iinfo {
+  background: url('../../assets/images/border/title_info.png') no-repeat center;
+}
+.imap {
+  background: url('../../assets/images/border/title_map.png') no-repeat center;
+}
+.ipie {
+  background: url('../../assets/images/border/title_pie.png') no-repeat center;
+}
+.irelation {
+  background: url('../../assets/images/border/title_relation.png') no-repeat center;
+}
+.iscatter {
+  background: url('../../assets/images/border/title_scatter.png') no-repeat center;
+}
+.itable {
+  background: url('../../assets/images/border/title_table.png') no-repeat center;
+}
+.content {
+  height: calc(100% - 33px);
+  padding: 10px 0;
+}
+</style>
+

@@ -1,0 +1,220 @@
+<!--
+ * @Author: niumiaomiao
+ * @Date: 2020-03-20 17:12:00
+ * @Description: 实时监测
+ -->
+<template>
+  <div :class="RealTime.container">
+    <div :class="RealTime.title">攻击总流量分布</div>
+    <div :class="RealTime.mapBox">
+      <BaseCharts v-if="loadedMap" :option="mapOption" :theme="'vintage'"></BaseCharts>
+    </div>
+    <div :class="RealTime.tableBox" :style="showTable ? tableHeight() : ''">
+      <div :class="[RealTime.changeBtn, showTable ? RealTime.up : '']" @click="changeTable"></div>
+      <div v-if="showTable === true" :class="RealTime.tableGroup">
+        <div :class="RealTime.tableOne">
+          <BorderBox title="实时IP/流量" type="table" bgColor="transparent" titleColor="#fff">
+            <TableOne :tableData="tableOneData" @currentRowData="currentRowData"></TableOne>
+          </BorderBox>
+        </div>
+        <div :class="RealTime.tableTwo">
+          <BorderBox title="攻击信息" type="table" bgColor="transparent" titleColor="#fff">
+            <TableTwo :tableData="tableTwoData"></TableTwo>
+          </BorderBox>
+        </div>
+        <div :class="RealTime.tableThree">
+          <BorderBox title="攻击者来源国家" type="table" bgColor="transparent" titleColor="#fff">
+            <TableThree :tableData="tableThreeData"></TableThree>
+          </BorderBox>
+        </div>
+        <div :class="RealTime.tableFour">
+          <BorderBox title="攻击者来源省份" type="table" bgColor="transparent" titleColor="#fff">
+            <TableFour :tableData="tableFourData"></TableFour>
+          </BorderBox>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script lang="ts">
+import _ from 'lodash'
+import dayjs from 'dayjs'
+import { Component, Vue } from 'vue-property-decorator'
+import BorderBox from '@/components/Common/BorderBox.vue'
+import TableOne from './components/TableOne.vue'
+import TableTwo from './components/TableTwo.vue'
+import TableThree from './components/TableThree.vue'
+import TableFour from './components/TableFour.vue'
+import { http } from '@/common/request'
+import { mapOption } from '@/views/Common/charts/mapOption'
+// import '@/components/Charts/map/world1'
+@Component({
+  components: {
+    BorderBox,
+    TableOne,
+    TableTwo,
+    TableThree,
+    TableFour
+  }
+})
+export default class RealTIme extends Vue {
+  private tableOneData: number[] = []
+  private tableTwoData: number[] = []
+  private tableThreeData: number[] = []
+  private tableFourData: number[] = []
+  private mapData: number[] = []
+  private showTable = false
+  private loadedMap = true
+  private formParams = {
+    id: '',
+    time: dayjs().format('YYYY-MM-DD')
+  }
+  private changeTable() {
+    this.showTable = !this.showTable
+  }
+  private mapNewOption = {
+    series: [
+      {
+        data: []
+      },
+      {
+        data: []
+      },
+      {
+        data: []
+      }
+    ]
+  } as any
+  private mapOption: any = _.defaultsDeep(this.mapNewOption, mapOption)
+  tableHeight() {
+    return {
+      height: '305px'
+    }
+  }
+  mounted() {
+    this.getMapData('1')
+  }
+  private currentRowData(data: string) {
+    this.formParams.id = data
+    this.getMapData('2')
+  }
+  private getMapData(type: string) {
+    interface IBiz {
+      left1: number[]
+      left2: number[]
+      left3: number[]
+      left4: number[]
+      dataTop: number[]
+    }
+    // 清空地图原数据
+    this.mapNewOption.series[0].data = []
+    this.mapNewOption.series[1].data = []
+    this.mapNewOption.series[2].data = []
+    http.post<IBiz>('/ddosFirst/getAll', this.formParams).then(resp => {
+      const bizData = resp.data
+      type === '1' ? (this.tableOneData = bizData.left1) : this.tableOneData
+      this.tableTwoData = bizData.left2
+      this.tableThreeData = bizData.left3
+      this.tableFourData = bizData.left4
+      this.mapData = bizData.dataTop
+      // 地图数据转换
+      this.mapData.forEach((e: any) => {
+        if (e.source.coords[0] < -30) {
+          e.source.coords[0] += 160
+        } else {
+          e.source.coords[0] -= 200
+        }
+        if (e.target.coords[0] < -30) {
+          e.target.coords[0] += 160
+        } else {
+          e.target.coords[0] -= 200
+        }
+        // 线图数据
+        this.mapNewOption.series[2].data.push({
+          coords: [e.source.coords, e.target.coords],
+          fromName: e.source.name,
+          toName: e.target.name,
+          attackflow: e.attackflow,
+          proportion: e.proportion
+        })
+        // 来源数据
+        this.mapNewOption.series[0].data.push(e.target.coords)
+        // 目标点
+        this.mapNewOption.series[1].data.push(e.source.coords)
+      })
+    })
+  }
+}
+</script>
+<style module="RealTime">
+.container {
+  position: relative;
+  height: 100%;
+}
+.title {
+  font-size: 18px;
+  color: #2648be;
+  text-indent: 30px;
+  text-align: left;
+  margin: 0 0 10px 0;
+  border-bottom: 1px solid #f2f2f2;
+  padding-bottom: 10px;
+  background: url('~@/assets/images/ddos/title_map.png') no-repeat left 0;
+}
+.mapBox {
+  width: 100%;
+  height: 98%;
+}
+.changeBtn {
+  width: 100px;
+  height: 35px;
+  margin-top: -36px;
+  background: url('~@/assets/images/ddos/jt.png') no-repeat center;
+  background-color: rgba(0, 87, 181, 0.7);
+}
+.changeBtn:hover {
+  cursor: pointer;
+}
+.up {
+  transform: rotate(-180deg);
+}
+.tableBox {
+  height: 0px;
+  width: calc(100% + 40px);
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  margin-left: -20px;
+  margin-bottom: -20px;
+  background-color: rgba(0, 87, 181, 0.7);
+  transition: height 1s;
+}
+.tableOne {
+  width: calc(40% - 10px);
+  height: 100%;
+  margin-right: 10px;
+  float: left;
+}
+.tableTwo {
+  width: calc(29% - 10px);
+  height: 100%;
+  margin-right: 10px;
+  float: left;
+}
+.tableThree {
+  width: calc(15% - 10px);
+  height: 100%;
+  margin-right: 10px;
+  float: left;
+}
+.tableFour {
+  width: 16%;
+  height: 100%;
+  float: left;
+}
+.tableGroup {
+  width: 100%;
+  height: 100%;
+}
+</style>

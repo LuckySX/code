@@ -1,0 +1,37 @@
+/*
+ * @Author: renxiaofan
+ * @Date: 2020-03-21 17:26:51
+ * @LastEditors: zhangjipei
+ * @LastEditTime: 2020-05-12 22:15:23
+ * @Description:
+ */
+import Vue from 'vue'
+import VueRouter from 'vue-router'
+import { routes } from './router.config'
+import { mountRouter } from './routerPermissions'
+
+Vue.use(VueRouter)
+// 测试路由
+if (process.env.NODE_ENV === 'development') {
+  routes.push({
+    path: '/test',
+    name: 'test',
+    component: () => import(/* webpackChunkName: "home" */ '@/views/Test.vue')
+  })
+}
+
+const router = new VueRouter({
+  scrollBehavior: (to, from, savedPosition) => {
+    if (savedPosition) {
+      return savedPosition
+    } else {
+      return { x: 0, y: 0 }
+    }
+  },
+  routes
+})
+
+// 挂载菜单权限
+mountRouter(router)
+
+export default router

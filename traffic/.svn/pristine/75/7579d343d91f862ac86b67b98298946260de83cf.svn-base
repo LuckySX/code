@@ -1,0 +1,36 @@
+<!--
+ * @Author: zhangjipei
+ * @Date: 2020-03-31 11:03:44
+ * @LastEditors: zhangjipei
+ * @LastEditTime: 2020-03-31 13:46:28
+ * @Description: 
+ -->
+<template>
+  <div>
+    <el-table :data="tableData" stripe style="width: 100%" height="100%">
+      <el-table-column prop="ipCount" label="单位IP数"></el-table-column>
+      <el-table-column prop="useCount" label="启用数量" show-overflow-tooltip></el-table-column>
+      <el-table-column prop="totalFlow" label="总流量" show-overflow-tooltip></el-table-column>
+      <el-table-column prop="websiteCount" label="网站数" show-overflow-tooltip></el-table-column>
+      <el-table-column
+        prop="requestFlow"
+        label="网站请求流量"
+        show-overflow-tooltip
+      ></el-table-column>
+      <el-table-column
+        prop="responseFlow"
+        label="网站响应流量"
+        show-overflow-tooltip
+      ></el-table-column>
+      <el-table-column prop="userIp" label="访问用户IP数" show-overflow-tooltip></el-table-column>
+    </el-table>
+  </div>
+</template>
+
+<script lang="ts">
+import { Component, Prop, Vue } from 'vue-property-decorator'
+@Component({})
+export default class Table extends Vue {
+  @Prop() private tableData!: number[]
+}
+</script>

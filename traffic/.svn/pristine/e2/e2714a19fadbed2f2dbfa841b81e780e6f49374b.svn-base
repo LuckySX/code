@@ -1,0 +1,16 @@
+export {}
+declare global {
+  interface Window {
+    attachEvent(type: string, callback: any): void
+    detachEvent(type: string, callback: any): void
+    md5(value: string, key?: string, bol?: boolean): string
+  }
+  /**
+   * 返回结果数据接口格式
+   */
+  interface IResponse<T = any> {
+    code: number
+    data: T
+    message: string
+  }
+}

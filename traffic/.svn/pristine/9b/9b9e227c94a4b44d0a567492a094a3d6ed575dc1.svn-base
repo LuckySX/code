@@ -1,0 +1,120 @@
+<!--
+ * @Author: zhangjipei
+ * @Date: 2020-03-20 19:30:20
+ * @LastEditors: zhangjipei
+ * @LastEditTime: 2020-03-23 15:50:42
+ * @Description: 
+ -->
+<template>
+  <div :class="menuForm.container">
+    <!-- <router-link to="/DDosOverall">DDosOverall</router-link> -->
+    <el-menu :default-active="activeMenu"
+             router
+             :collapse="isCollapse">
+      <template v-for="(menu, index) in mlist">
+        <el-submenu :index="menu.url">
+          <template slot="title">
+            <i :class="[menuForm.icon, iconStyle(menu.icon)]"></i>
+            <span slot="title">{{menu.name}}</span>
+          </template>
+          <template v-for="(cMenu, cIndex) in menu.sonmenu">
+            <template v-if="cMenu.name&&cMenu.sonmenu">
+              <el-submenu :index="cMenu.url"
+                          :ref="cMenu.url">
+                <span slot="title">{{cMenu.name}}</span>
+                <template v-for="(cCMenu, cCIndex) in cMenu.sonmenu">
+                  <el-menu-item :index="`${menu.url}/${cMenu.url}/${cCMenu.url}`">{{cCMenu.name}}</el-menu-item>
+                </template>
+              </el-submenu>
+            </template>
+            <template v-if="!cMenu.sonmenu && cMenu.name">
+              <el-menu-item :index="`${menu.url}/${cMenu.url}`">{{cMenu.name}}</el-menu-item>
+            </template>
+          </template>
+        </el-submenu>
+      </template>
+    </el-menu>
+  </div>
+</template>
+
+<script lang="ts">
+import { Component, Vue } from 'vue-property-decorator'
+import { State, Getter, Action, Mutation, namespace } from 'vuex-class'
+
+const appModuleVuex = namespace('app')
+@Component({})
+export default class MenuForm extends Vue {
+  private mlist = [
+    {
+      name: 'DDoS攻击监测',
+      url: '',
+      icon: '9',
+      id: '1',
+      sonmenu: [
+        {
+          name: 'DDoS攻击事件概览',
+          url: 'DDosOverall'
+        },
+        {
+          name: '实时监测',
+          url: 'DDosRealTime'
+        }
+      ]
+    }
+  ]
+  private activeMenu : string = '/DDosOverall'
+  // private isCollapse : boolean = false
+  private menuForm : any
+  private criticalWidth : number = 1440
+
+  @appModuleVuex.Getter('getCollapse') isCollapse!: boolean
+
+  @Action('app/setCollapseAction') setCollapseAction!: Function
+
+  private iconStyle (icon : string) {
+    let name : string = `menu${icon}`
+    return this.menuForm[name]
+  }
+  private resizeEventHandler(): void {
+    this.setCollapseAction({ isCollapse: document.body.offsetWidth <= this.criticalWidth })
+  }
+  private created() {
+    this.activeMenu = window.location.href.split('#')[1];
+  }
+  private mounted() {
+    // console.log(this.isCollapse, document.body.offsetWidth)
+    this.setCollapseAction({ isCollapse: document.body.offsetWidth <= this.criticalWidth })
+    if (window.addEventListener) {
+      window.addEventListener('resize', this.resizeEventHandler, false)
+    } else if (window.attachEvent) {
+      const that = this
+      window.attachEvent('resize', that.resizeEventHandler)
+    }
+  }
+  private destoryed() {
+    if (window.removeEventListener) {
+      window.removeEventListener('resize', this.resizeEventHandler, false)
+    } else if (window.detachEvent) {
+      const that = this
+      window.detachEvent('resize', that.resizeEventHandler)
+    }
+  }
+}
+</script>
+<style module="menuForm">
+.container {
+  width: 100%;
+  height: 100%;
+  background: #012A6C;
+}
+.icon {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  margin-left: -20px;
+}
+.menu9 {
+  background: url('~@/assets/images/menu/9.png') no-repeat center;
+  background-size: 50%;
+}
+</style>

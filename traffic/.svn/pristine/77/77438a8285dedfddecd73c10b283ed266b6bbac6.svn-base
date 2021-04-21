@@ -1,0 +1,420 @@
+/*
+ * @Author: niumiaomiao
+ * @Date: 2020-03-22 13:55:25
+ * @Description:
+ */
+
+const axisLabelColor = '#666'
+const axisLineColor = '#2648BE'
+
+/*
+ * @Author       fuping
+ * @Date         2020-03-22
+ * @Description  ECHARTS散点图
+ * @param        { Array } renderData [{ name: '80', value: 30 }]
+ *
+ */
+export const baseScatterOption = {
+  color: '#2593F2',
+  tooltip: {
+    show: true,
+    formatter: (data: any) => {
+      return `高峰攻击速率: ${data.data[1]}<br>
+              连接数: ${data.data[0]}`
+    }
+  },
+  grid: {
+    left: 20,
+    right: '4%',
+    bottom: 0,
+    top: 30,
+    containLabel: true
+  },
+  xAxis: {
+    axisLabel: {
+      color: axisLabelColor
+    },
+    axisLine: {
+      lineStyle: {
+        color: axisLineColor,
+        opacity: 0.5
+      }
+    },
+    splitLine: {
+      show: false
+    },
+    axisTick: {
+      length: 2
+    }
+  },
+  yAxis: {
+    name: 'MBP/S',
+    axisLabel: {
+      color: axisLabelColor
+    },
+    axisLine: {
+      lineStyle: {
+        color: axisLineColor,
+        opacity: 0.5
+      }
+    },
+    splitLine: {
+      lineStyle: {
+        color: axisLineColor,
+        opacity: 0.1
+      }
+    },
+    axisTick: {
+      length: 2
+    }
+  },
+  series: [
+    {
+      type: 'scatter',
+      symbolSize: 10,
+      data: []
+      // data: [
+      //   { name: '80', value: 30 },
+      //   { name: '90', value: 80 }
+      // ]
+    }
+  ]
+}
+
+/*
+ * @Author       fuping
+ * @Date         2020-03-22
+ * @Description  ECHARTS柱图
+ * @param        { Array } [{name: '', value: 0}]
+ */
+export const baseBarOption = {
+  color: '#0B56A7',
+  tooltip: {
+    trigger: 'axis',
+    formatter: (data: any) => {
+      return `ip: ${data[0].data.name}<br>
+              攻击总流量: ${data[0].data.info}`
+    }
+  },
+  grid: {
+    left: 10,
+    right: '4%',
+    bottom: 0,
+    top: 30,
+    containLabel: true
+  },
+  yAxis: [
+    {
+      type: 'category',
+      position: 'left',
+      offset: '0',
+      data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+      axisLabel: {
+        color: axisLabelColor
+      },
+      axisLine: {
+        lineStyle: {
+          color: axisLineColor,
+          opacity: 0.5
+        }
+      },
+      splitLine: {
+        lineStyle: {
+          color: axisLineColor,
+          opacity: 0.1
+        }
+      },
+      axisTick: {
+        length: 2,
+        alignWithLabel: true
+      },
+      nameTextStyle: {
+        color: axisLabelColor
+      }
+    },
+    {
+      type: 'category',
+      position: 'right',
+      offset: '0',
+      data: [],
+      axisLabel: {
+        color: axisLabelColor
+      },
+      axisLine: {
+        show: false
+      },
+      splitLine: {
+        show: false
+      },
+      axisTick: {
+        show: false
+      }
+    }
+  ],
+  xAxis: [
+    {
+      type: 'value',
+      axisLabel: {
+        color: axisLabelColor
+      },
+      axisLine: {
+        lineStyle: {
+          color: axisLineColor,
+          opacity: 0.5
+        }
+      },
+      splitLine: {
+        show: false
+      },
+      axisTick: {
+        length: 2
+      },
+      splitNumber: 3
+    }
+  ],
+  series: [
+    {
+      name: '左',
+      type: 'bar',
+      yAxisIndex: 1,
+      barWidth: 10,
+      itemStyle: {
+        color: '#0B56A7'
+      },
+      data: [10, 52, 200, 334, 390, 330, 220],
+      z: 1
+    },
+    {
+      name: '背景',
+      type: 'bar',
+      barWidth: 10,
+      barGap: '-100%',
+      barCategoryGap: '50%',
+      itemStyle: {
+        color: '#F2F2F2'
+      },
+      tooltip: {
+        show: false
+      },
+      data: [10, 52, 200, 334, 390, 330, 220],
+      z: 0
+    }
+  ]
+}
+
+/**
+ * @Author: niumiaomiao
+ * @description: 地图
+ * @param {type}
+ * @return:
+ */
+export const mapOption = {
+  tooltip: {
+    trigger: 'item'
+  },
+  geo: {
+    map: 'world',
+    layoutCenter: ['50%', '50%'],
+    layoutSize: '190%',
+    label: {
+      emphasis: {
+        show: false
+      }
+    },
+    roam: true,
+    itemStyle: {
+      normal: {
+        borderColor: '#0290ff',
+        borderWidth: 1,
+        areaColor: {
+          type: 'linear',
+          x: 0,
+          y: 0,
+          x2: 0,
+          y2: 1,
+          colorStops: [
+            {
+              offset: 0,
+              color: '#1864B6' // 0% 处的颜色
+            },
+            {
+              offset: 1,
+              color: '#6AC1F9' // 100% 处的颜色
+            }
+          ],
+          global: false // 缺省为 false
+        }
+      },
+      emphasis: {
+        areaColor: '#389BB7',
+        borderWidth: 1,
+        borderColor: '#1497fc'
+      }
+    },
+    data: [],
+    silent: true
+  },
+  series: [
+    {
+      type: 'effectScatter',
+      coordinateSystem: 'geo',
+      zlevel: 3,
+      rippleEffect: {
+        brushType: 'fill',
+        period: 6,
+        scale: 4
+      },
+      tooltip: {
+        show: false
+      },
+      symbolSize: 10,
+      itemStyle: {
+        normal: {
+          color: '#fff',
+          borderColor: 'rgba(0,80,104,0.5)'
+        }
+      },
+      data: []
+    },
+    {
+      tooltip: {
+        show: false
+      },
+      type: 'effectScatter',
+      coordinateSystem: 'geo',
+      zlevel: 3,
+      rippleEffect: {
+        brushType: 'fill',
+        period: 6,
+        scale: 4
+      },
+      symbolSize: 1,
+      itemStyle: {
+        normal: {
+          color: '#fff',
+          borderColor: 'rgba(0,80,104,0.5)'
+        }
+      },
+      data: []
+    },
+    {
+      name: 'lines',
+      type: 'lines',
+      zlevel: 2,
+      symbolSize: 10,
+      effect: {
+        show: true,
+        period: 3,
+        trailLength: 0.5,
+        constantSpeed: 140,
+        color: '#FDFD02',
+        symbol: 'rect', //ECharts 提供的标记类型包括 'circle', 'rect', 'roundRect', 'triangle', 'diamond', 'pin', 'arrow'
+        symbolSize: 4
+      },
+      lineStyle: {
+        normal: {
+          color: '#FDFD02',
+          width: 0.8,
+          type: 'solid',
+          opacity: 0.2,
+          //shadowBlur:10,
+          curveness: 0.2
+        }
+      },
+      tooltip: {
+        formatter: (params: any) => {
+          return `攻击来源：${params.data.fromName}</br>
+                          攻击目标：${params.data.toName}</br>
+                          攻击流量: ${params.data.attackflow}<br/>
+                          攻击占比：${params.data.proportion}`
+        }
+      },
+      data: []
+    }
+  ]
+}
+/**
+ * @Author: shixiao
+ * @description: 饼图
+ * @param {type}
+ * @return:
+ */
+export const pieOption = {
+  tooltip: {
+    trigger: 'item',
+    formatter: '{b} : {d}%'
+  },
+  color: ['#FFA514', '#0B56A7', '#DEC300', '#10AC84', '#009AB3', '#2593F3'],
+  series: [
+    {
+      type: 'pie',
+      radius: '55%',
+      center: ['50%', '50%'],
+      data: [],
+      labelLine: {
+        length: 2
+      },
+      emphasis: {
+        itemStyle: {
+          shadowBlur: 10,
+          shadowOffsetX: 0,
+          shadowColor: 'rgba(0, 0, 0, 0.5)'
+        }
+      }
+    }
+  ]
+}
+/**
+ * @Author: shixiao
+ * @description: 折线
+ * @param {type}
+ * @return:
+ */
+export const lineOption = {
+  xAxis: {
+    type: 'category',
+    data: [],
+    axisLabel: {
+      color: axisLabelColor
+    },
+    axisLine: {
+      lineStyle: {
+        color: axisLineColor,
+        opacity: 0.5
+      }
+    }
+  },
+  grid: {
+    left: 10,
+    right: '4%',
+    bottom: 0,
+    top: 30,
+    containLabel: true
+  },
+  yAxis: {
+    type: 'value',
+    name: 'MB',
+    axisLabel: {
+      color: axisLabelColor
+    },
+    axisLine: {
+      lineStyle: {
+        color: axisLineColor,
+        opacity: 0.5
+      }
+    },
+    splitLine: {
+      lineStyle: {
+        color: axisLineColor,
+        opacity: 0.1
+      }
+    }
+  },
+  series: [
+    {
+      data: [],
+      type: 'line',
+      smooth: true
+    }
+  ]
+}

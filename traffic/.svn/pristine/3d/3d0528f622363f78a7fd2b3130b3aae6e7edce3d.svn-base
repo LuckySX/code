@@ -1,0 +1,30 @@
+/*
+ * @Author: your name
+ * @Date: 2020-03-25 10:38:49
+ * @LastEditTime: 2020-04-08 17:06:29
+ * @LastEditors: Please set LastEditors
+ * @Description: In User Settings Edit
+ * @FilePath: \sz-new-FE\src\router\DDos\index.ts
+ */
+
+export const ddosConfig = [
+  {
+    path: '/DDosRealTime',
+    name: '实时监测',
+    component: () => import('@/views/DDos/RealTime/index.vue')
+  },
+  {
+    path: '/DDosOverall',
+    name: 'DDoS攻击事件',
+    meta: {
+      keepAlive: true,
+      isBack: false
+    },
+    component: () => import('@/views/DDos/DDosOverall/index.vue')
+  },
+  {
+    path: '/DDosDetails',
+    name: 'DDoS攻击事件详情',
+    component: () => import('@/views/DDos/DDosDetails/index.vue')
+  }
+]

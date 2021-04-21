@@ -1,0 +1,54 @@
+<!--
+ * @Author: fuping
+ * @Date: 2020-03-25 13:49:47
+ * @LastEditors: niumiaomiao
+ * @LastEditTime: 2020-04-13 14:40:15
+ * @Description: 
+ -->
+<template>
+  <div>
+    <el-table :data="tableData" stripe style="min-width: 100%" height="100%" tooltip-effect="light" @selection-change="handleSelectionChange">
+      <el-table-column type="selection" width="55"></el-table-column>
+      <el-table-column prop="orderNum" label="序号" min-width="60px"></el-table-column>
+      <el-table-column prop="ip" label="被攻击IP" min-width="130px" show-overflow-tooltip></el-table-column>
+      <el-table-column prop="primaryPort" label="端口" show-overflow-tooltip :formatter="tooltipFormatter"></el-table-column>
+      <el-table-column prop="volume" label="流量" show-overflow-tooltip></el-table-column>
+      <el-table-column prop="packets" label="包数" show-overflow-tooltip></el-table-column>
+      <el-table-column prop="entropy" label="熵值" show-overflow-tooltip :formatter="tooltipFormatter"></el-table-column>
+      <el-table-column prop="protocol" label="协议类型" min-width="120px" show-overflow-tooltip></el-table-column>
+      <el-table-column prop="beginTime" label="起始攻击时间" min-width="120px" show-overflow-tooltip></el-table-column>
+      <el-table-column prop="endTime" label="攻击结束时间" min-width="120px" show-overflow-tooltip></el-table-column>
+      <el-table-column prop="sources" label="攻击IP数量" min-width="120px" show-overflow-tooltip></el-table-column>
+      <el-table-column prop="attackType" label="疑似攻击类型" min-width="120px" show-overflow-tooltip :formatter="tooltipFormatter"></el-table-column>
+      <el-table-column prop="rank" label="危险等级程度" min-width="120px"></el-table-column>
+      <el-table-column prop="peakBand" label="最大流量峰值速率" min-width="180px" show-overflow-tooltip></el-table-column>
+      <el-table-column fixed="right" label="操作">
+        <template slot-scope="scope">
+          <span class="" @click="handleCheck(scope.$index, scope.row)">详情</span>
+        </template>
+      </el-table-column>
+    </el-table>
+  </div>
+</template>
+
+<script lang="ts">
+import { Component, Prop, Vue } from 'vue-property-decorator'
+@Component({})
+export default class Table extends Vue {
+  @Prop() private tableData!: number[]
+  mounted() {}
+  handleCheck(index: any, row: any) {
+    this.$emit('handleCheck', row)
+  }
+  handleSelectionChange(val: any) {
+    val = val.map((item: any) => {
+      return item.ip
+    })
+    this.$emit('handleSelectionChange', val.toString())
+  }
+  tooltipFormatter(row: any, column: any) {
+    const data = row[column.property]
+    return data.split(',').join('\n')
+  }
+}
+</script>

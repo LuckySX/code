@@ -1,0 +1,26 @@
+<!--
+ * @Author: niumiaomiao
+ * @Date: 2020-03-21 21:57:40
+ * @Description: 
+ -->
+<template>
+  <el-table :data="tableData"
+            stripe
+            style="width: 100%">
+    <el-table-column prop="date"
+                     label="国家"></el-table-column>
+    <el-table-column prop="name"
+                     label="攻击流量"></el-table-column>
+    <el-table-column prop="address"
+                     label="流量占比"></el-table-column>
+  </el-table>
+</template>
+
+<script lang="ts">
+import { Component, Prop, Vue } from 'vue-property-decorator'
+@Component({})
+export default class BorderCon extends Vue {
+  @Prop() private tableData!: number[]
+  mounted() {}
+}
+</script>

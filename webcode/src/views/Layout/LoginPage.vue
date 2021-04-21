@@ -1,0 +1,375 @@
+<!--
+ * @Author: zhangjipei
+ * @Date: 2020-03-25 09:27:42
+ * @LastEditors: fuping
+ * @LastEditTime: 2020-08-07 13:50:28
+ * @Description: 
+ -->
+<template>
+  <div :class="Login.container">
+    <div :class="Login.loginBox">
+      <div :class="Login.title">登录</div>
+      <ol :class="Login.inputGroup">
+        <li>
+          <label>用户名</label>
+          <input v-model="loginForm.userName" type="text" name="user" @blur="handlerBlur" @keyup.enter="loginKeyup" />
+          <strong title=""></strong>
+        </li>
+        <li>
+          <label>密码</label>
+          <input v-model="loginForm.userPassword" type="password" name="pwd" @blur="handlerBlur" @keyup.enter="loginKeyup" ref="loginPwd" />
+          <strong title=""></strong>
+        </li>
+        <li>
+          <label>验证码</label>
+          <input v-model="loginForm.veryfycode" type="text" name="code" @blur="handlerBlur" @keyup.enter="loginKeyup" ref="loginCode" />
+          <b>
+            <img :src="verificationSrc" :class="Login.verification" title="刷新" @click="changeVerification" />
+          </b>
+        </li>
+        <!-- <li :class="Login.checkBox">
+          <input v-model="loginForm.isRemember" type="checkbox" name="checkbox" />
+          <span>记住密码</span>
+        </li> -->
+        <li>
+          <button @click="login" v-html="buttonValue"></button>
+        </li>
+      </ol>
+    </div>
+  </div>
+</template>
+
+<script lang="ts">
+import { Component, Prop, Vue } from 'vue-property-decorator'
+import { State, Getter, Action, Mutation, namespace } from 'vuex-class'
+import { getCookies, setCookies, removeCookies, setSession } from '@/utils/cookiesUtil'
+import { http } from '@/common/request'
+import { trim } from 'lodash'
+
+const userModuleVuex = namespace('user')
+// 验证码绝对路径
+const V_PATH = process.env.VUE_APP_BASE_API + '/imageCode/getImage'
+
+// 登录信息接口：userName，用户名；userPassword，密码；veryfycode，验证码；isRemember，是否记住密码
+interface ILoginInterface {
+  userName: string
+  userPassword: string
+  veryfycode: string
+  isRemember: boolean
+}
+interface IResponse<T = any> {
+  code: number
+  data: T
+  message: string
+}
+interface IUserInfo {
+  roles: string
+  uname: string
+  userIp: string
+}
+
+@Component({})
+export default class Login extends Vue {
+  @Prop() private isLogin!: any
+  private checkCookie = false
+  private checkLoginVal = 0
+  private buttonValue = '登&nbsp;&nbsp;&nbsp;录'
+  private randomCode = Math.floor(Math.random() * 1000000)
+  private randomCode1 = 0
+  private loginForm: ILoginInterface = {
+    userName: '',
+    userPassword: '',
+    veryfycode: '',
+    isRemember: false
+  }
+  @userModuleVuex.Getter('getTokenState') token!: any
+  @Action('user/SET_TOKEN') SET_TOKEN!: Function
+  // @State('token') token
+  // 验证码图片地址
+  private verificationSrc = `${V_PATH}`
+  // 刷新验证码图片
+  changeVerification() {
+    this.verificationSrc = `${V_PATH}?code=${this.randomCode}&time=` + new Date()
+    this.randomCode1 = this.randomCode
+  }
+  mounted() {
+    this.changeVerification()
+    // 在页面加载时从cookie获取登录信息,检测是否有保存用户名密码
+    this.getRememberInfo()
+  }
+  // 失去焦点事件回调方法
+  handlerBlur(e: any) {
+    const val = e.target.value
+    const inputName = e.target.name
+    if (inputName === 'user' && val !== '') {
+      this.getRememberInfo()
+    }
+  }
+  // 回车Enter按键回调方法
+  loginKeyup(e: any) {
+    const inputName = e.target.name
+    if (inputName === 'code') {
+      this.login()
+      return false
+    }
+  }
+  // 获取记住密码
+  getRememberInfo() {
+    try {
+      const userName = getCookies('sz-username')
+      const userPassword = getCookies('sz-password')
+      const remember = getCookies('sz-remember')
+      if (userName !== undefined && userPassword !== undefined && remember) {
+        this.loginForm.userName = userName
+        this.loginForm.userPassword = userPassword
+        this.loginForm.isRemember = true
+        this.checkCookie = true
+        return userPassword
+      } else {
+        this.checkCookie = false
+        return false
+      }
+    } catch (err) {
+      this.$message.error('NO RMB PASSWORD!')
+    }
+  }
+  // 确认登陆时密码是否需要MD5加密
+  md5Judge(password: string) {
+    return this.checkCookie !== true ||
+      (this.checkCookie === true && window.md5(password) === this.getRememberInfo()) ||
+      (this.checkCookie === true && window.md5(password) !== this.getRememberInfo() && this.checkLoginVal !== 0)
+      ? window.md5(password)
+      : password
+  }
+  // 检查登录信息文本框是否存在空值
+  checkLoginForm(username: string, password: string, code: string) {
+    if (username === '') {
+      this.$message('用户名不能为空')
+      return false
+    }
+    if (password === '') {
+      this.$message('密码不能为空')
+      return false
+    }
+    if (code === '') {
+      this.$message('验证码不能为空')
+      return false
+    }
+    return true
+  }
+  // 登录操作
+  login() {
+    const username = this.loginForm.userName
+    const password = this.loginForm.userPassword
+    const code = this.loginForm.veryfycode
+    const tt = this.loginForm.isRemember
+    // tt：是否选择记住密码，选择则将用户名和密码放入cookie，不选择则检查是否有存在同用户名的cookie，有则删除
+    if (tt) {
+      setCookies({ 'sz-username': username })
+      setCookies({ 'sz-password': this.md5Judge(password) })
+      setCookies({ 'sz-remember': tt })
+    } else {
+      const cuserName = getCookies('sz-username')
+      if (username === cuserName) {
+        removeCookies('sz-username')
+        removeCookies('sz-password')
+      }
+    }
+    if (this.checkLoginForm(username, password, code)) {
+      this.checkLogin(username, password, code)
+    }
+  }
+  /**
+   * @name: checkLogin
+   * @param {string} username 用户名
+   * @param {string} password 密码
+   * @param {string} code 验证码
+   * @return: {boolean} 返回是否可以核对验证码
+   * @description: 核对用户名和密码，通过则核对验证码
+   */
+  checkLogin(username: string, password: string, code: string) {
+    http
+      .post<IResponse>('/iam/iamLogin', {
+        username: trim(username),
+        password: this.md5Judge(this.md5Judge(password)),
+        ip: ''
+      })
+      .then((res: any) => {
+        const {
+          data: { token, roles, uname }
+        } = res
+        if (token != undefined) {
+          this.SET_TOKEN({ token: token })
+          const szUserInfo: IUserInfo = {
+            roles: roles || '',
+            uname: uname || '',
+            userIp: ''
+          }
+          setCookies({ szCode: token, szUserInfo: szUserInfo })
+          this.checkImageCode(code)
+        }
+      })
+      .catch((error: any) => {
+        this.changeVerification()
+        if (error.code === 100) {
+          this.checkLoginVal++
+        }
+      })
+  }
+  /**
+   * @name: checkImageCode
+   * @param {string} code 随机码
+   * @param {string} checkCode 输入的验证码
+   * @return: {boolean} 返回是否可以登陆
+   * @description: 核对验证码，通过则登录
+   */
+  checkImageCode(code: string) {
+    const codeFormatter = trim(code)
+    http
+      .get<IResponse>(`/imageCode/checkImage?code=${this.randomCode1}&checkCode=${codeFormatter}`)
+      .then((res: any) => {
+        const result = res.data
+        if (result) {
+          this.loginSuccess()
+        }
+      })
+      .catch((error: any) => {
+        console.log(error)
+        this.changeVerification()
+      })
+  }
+  // 登录成功，进入menuIndex导航页
+  loginSuccess() {
+    this.$emit('change', false)
+  }
+}
+</script>
+
+<style module="Login">
+.container {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000a25 url('~@/assets/images/sys/loginBg.jpg') 50% 50% no-repeat;
+  background-size: cover;
+  position: relative;
+}
+.loginBox {
+  width: 460px;
+  height: 350px;
+  background: #fff;
+  position: absolute;
+  left: 50%;
+  margin-left: -230px;
+  top: 50%;
+  margin-top: -175px;
+  border-radius: 5px;
+  box-sizing: border-box;
+  padding: 25px 80px;
+}
+.title {
+  font-size: 24px;
+  color: #404040;
+  text-align: center;
+  letter-spacing: 5px;
+  margin-bottom: 20px;
+}
+.inputGroup {
+  padding: 0;
+  margin: 0;
+}
+.inputGroup,
+.inputGroup li {
+  list-style: none;
+}
+.inputGroup li {
+  position: relative;
+  height: 50px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+}
+.inputGroup li.checkBox {
+  flex-direction: row;
+  height: 20px;
+  line-height: 20px;
+}
+.inputGroup li:last-child {
+  margin-top: 15px;
+}
+.inputGroup li label {
+  font-size: 15px;
+  color: #266ebd;
+  display: inline-block;
+  margin-bottom: 5px;
+  text-align: left;
+}
+.inputGroup li input {
+  height: 30px;
+  line-height: 30px;
+  width: 100%;
+  background: #fff;
+  border-bottom: 1px solid #7b7b7b;
+  font-size: 15px;
+  outline: none;
+}
+.inputGroup li input[type='checkbox'] {
+  width: 13px;
+  height: 13px;
+  display: inline-block;
+  vertical-align: middle;
+  margin-top: 4px;
+  margin-right: 6px;
+}
+.inputGroup li button {
+  height: 40px;
+  font-size: 18px;
+  border-radius: 3px;
+  border: none;
+  color: #fff;
+  background: linear-gradient(to right, #004bdd, #0076e5);
+  cursor: pointer;
+}
+.inputGroup li button:hover {
+  background: #0076e5;
+}
+.inputGroup li span {
+  color: #376ebd;
+  font-size: 13px;
+  text-align: left;
+}
+.inputGroup li a {
+  text-decoration: none;
+  color: #fff;
+  font-size: 13px;
+  margin-left: 130px;
+}
+.inputGroup li b {
+  position: absolute;
+  right: 0px;
+  top: 6px;
+  height: 40px;
+  width: 88px;
+  text-align: center;
+  font-size: 24px;
+  line-height: 38px;
+  color: #fff;
+  animation: my1 1.5s linear infinite alternate;
+  border: 1px solid #a09b9b;
+}
+.inputGroup li strong {
+  display: inline-block;
+  font-weight: normal;
+  color: E25252;
+  font-size: 14px;
+  position: absolute;
+  right: 5px;
+  top: 30px;
+}
+.verification {
+  cursor: pointer;
+  margin-left: 5px;
+  width: 80px;
+  height: 35px;
+}
+</style>

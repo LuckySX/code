@@ -1,0 +1,291 @@
+<!--
+ * @Author: fuping
+ * @Date: 2020-03-30 14:19:21
+ * @LastEditors: niumiaomiao
+ * @LastEditTime: 2020-04-13 14:39:31
+ * @Description: 
+ -->
+
+<template>
+  <div :class="flowOverview.main">
+    <div :class="flowOverview.topBox">
+      <div :class="flowOverview.itemsBox">
+        <div :class="flowOverview.itemsInfoBox">
+          <span>{{ time }}</span>
+          <span>企业IP数：{{ totalInfo.dip || 0 }}</span>
+          <span>总流量：{{ totalInfo.volume || 0 }}</span>
+          <span>用户IP数：{{ totalInfo.sipCcnt || 0 }}</span>
+          <span>应用流量：{{ totalInfo.appVolume || 0 }}</span>
+        </div>
+        <div :class="flowOverview.itemsSubmitBox">
+          <el-select v-model="inputType" class="sz" placeholder="请选择输入类型" style="width: 100px; margin-right: 10px;" @change="handleChange">
+            <el-option v-for="item in filedOpt" :key="item.value" :label="item.label" :value="item.value"></el-option>
+          </el-select>
+          <el-input v-model="inputValue" :placeholder="placeholder" style="width: 160px;"></el-input>
+          <el-button type="primary" style="margin: 0 10px;" @click="handleQuery">查询</el-button>
+          <el-button type="primary" style="width: 110px" @click="handleJump">
+            进入重点资产
+          </el-button>
+        </div>
+      </div>
+      <div :class="flowOverview.mapBox">
+        <BaseCharts :option="mapOption" :theme="'vintage'"></BaseCharts>
+      </div>
+    </div>
+    <div :class="flowOverview.bottomBox">
+      <div :class="flowOverview.chartBox">
+        <BorderBox title="用户访问 TOP 5" type="table">
+          <TableOne :tableData="tableDataOne"></TableOne>
+        </BorderBox>
+      </div>
+      <div :class="flowOverview.chartBox">
+        <BorderBox title="应用流量 TOP 5" type="table">
+          <TableTwo :tableData="tableDataTwo"></TableTwo>
+        </BorderBox>
+      </div>
+      <div :class="flowOverview.chartBox">
+        <BorderBox title="运营商流量占比" type="pie">
+          <BaseCharts :option="pieOption" :theme="'vintage'"></BaseCharts>
+        </BorderBox>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script lang="ts">
+import { Component, Vue } from 'vue-property-decorator'
+import BorderBox from '@/components/Common/BorderBox.vue'
+import TableOne from './components/TableOne.vue'
+import TableTwo from './components/TableTwo.vue'
+import { szMapOption, doublePieOption } from '@/views/Common/charts/chartsOption'
+import { http } from '@/common/request'
+import dayjs from 'dayjs'
+import _ from 'lodash'
+interface IDefaultInputItems {
+  filed: string
+  value: string
+}
+interface IParams {
+  code: number
+  data: number[]
+  message: string
+}
+@Component({
+  components: {
+    BorderBox,
+    TableOne,
+    TableTwo
+  }
+})
+export default class FlowOverview extends Vue {
+  private time: string = dayjs().format('YYYY年MM月DD日')
+  private inputValue = ''
+  private inputType = 'dip'
+  private placeholder = '请输入IP地址'
+  private tableDataOne: number[] = []
+  private tableDataTwo: number[] = []
+  private totalInfo = {
+    dip: 0,
+    sipCcnt: 0,
+    appVolume: 0,
+    volume: 0
+  }
+  // 输入类型
+  private filedOpt = [
+    { label: 'IP', value: 'dip' },
+    { label: '域名', value: 'domain' },
+    { label: '单位', value: 'dip_company_name' } //后端命名，不能驼峰，数据库字段是带下划线的
+  ]
+  private placeHoderGroup = {
+    dip: '请输入IP地址',
+    domain: '请输入域名',
+    dipCompanyName: '请输入单位名称'
+  }
+  private mapNewOption = {
+    series: [
+      {
+        data: []
+      }
+    ]
+  } as any
+  private newPieOp = {
+    legend: {
+      data: []
+    },
+    series: [
+      {
+        data: []
+      },
+      {
+        data: []
+      }
+    ]
+  } as any
+  private mapOption: any = _.defaultsDeep(this.mapNewOption, szMapOption)
+  private pieOption: any = _.defaultsDeep(this.newPieOp, doublePieOption)
+  mounted() {
+    this.init()
+  }
+  init() {
+    this.getInfoData()
+    this.getMapData()
+    this.getUserData()
+    this.getProtocolData()
+    this.getOperatorData()
+  }
+  handleQuery() {
+    this.inputValue = _.trim(this.inputValue)
+    // 输入框不能为空
+    if (this.inputValue != '') {
+      // 校验ip
+      if (this.inputType === 'dip') {
+        if (!this.isValidIP(this.inputValue)) {
+          this.$message({
+            message: '请输入正确的IP',
+            type: 'error'
+          })
+        } else {
+          this.getMapData()
+        }
+      } else {
+        this.getMapData()
+      }
+    } else {
+      this.$message({
+        message: '请输入查询内容',
+        type: 'warning'
+      })
+    }
+  }
+  getInfoData() {
+    interface IInterFlowTotalInfo {
+      dip: number
+      sipCcnt: number
+      appVolume: number
+      volume: number
+    }
+    http.post<IInterFlowTotalInfo>('/netSecur-web/interFlow/totalInfo').then(resp => {
+      const { data } = resp
+      this.totalInfo = data
+    })
+  }
+  // 获取地图数据数据
+  getMapData() {
+    type NewType = IDefaultInputItems
+    const params: NewType = {
+      filed: this.inputType,
+      value: this.inputValue
+    }
+    http.post<IParams>('/netSecur-web/interFlow/map', params).then((resp: any) => {
+      const { data } = resp
+      const mapData = data.map((i: any) => ({
+        name: i.dip,
+        dipCompanyName: i.dipCompanyName,
+        value: [i.dipLongitude, i.dipLatitude],
+        dipUsed: i.dipUsed,
+        domain: i.domain,
+        segment: i.segment,
+        sipCnt: i.sipCnt,
+        volume: i.volume
+      }))
+      this.mapOption.series[0].data = mapData
+    })
+  }
+  // 获取用户访问TOP5数据
+  getUserData() {
+    http.post<IParams>('/netSecur-web/interFlow/userTop').then((resp: any) => {
+      const { data } = resp
+      this.tableDataOne = data
+    })
+  }
+  // 获取应用流量TOP5数据
+  getProtocolData() {
+    http.post<IParams>('/netSecur-web/interFlow/protocolTop').then((resp: any) => {
+      const { data } = resp
+      this.tableDataTwo = data
+    })
+  }
+  // 获取运营商流量占比数据
+  getOperatorData() {
+    interface IOperatorProtocol {
+      operators: any
+      protocols: any
+    }
+    http.post<IOperatorProtocol>('/netSecur-web/interFlow/operatorProtocol').then(resp => {
+      const {
+        data: { operators, protocols }
+      } = resp
+      this.pieOption.series[0].data = operators
+      this.pieOption.series[1].data = protocols
+      const legend1 = operators.map(v => v.name)
+      const legend2 = protocols.map(v => v.name)
+      this.pieOption.legend.data = [...legend1, ...legend2]
+    })
+  }
+  handleChange(v: string) {
+    if (v != 'dip' && v != 'domain') {
+      v = 'dipCompanyName'
+    }
+    this.placeholder = this.placeHoderGroup[v]
+    this.inputValue = ''
+  }
+  handleJump() {
+    this.$router.push({
+      path: '/KeyAsset',
+      query: {
+        type: this.inputType, // 下拉框类型
+        value: this.inputValue // 输入值
+      }
+    })
+  }
+  isValidIP(ip) {
+    const reg = /^(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])$/
+    return reg.test(ip)
+  }
+}
+</script>
+<style module="flowOverview">
+.main {
+  width: 100%;
+  height: 100%;
+  text-align: left;
+}
+.topBox {
+  position: relative;
+  height: calc(100% - 257px - 10px);
+  background: #fff;
+  margin-bottom: 10px;
+}
+.bottomBox {
+  height: 257px;
+  display: flex;
+  justify-content: space-between;
+}
+.itemsBox {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9;
+  background: rgba(255, 255, 255, 0.5);
+  padding: 5px 10px 2px;
+}
+.mapBox {
+  width: 100%;
+  height: 100%;
+}
+.itemsInfoBox span {
+  color: #666;
+  margin-right: 15px;
+}
+.chartBox {
+  flex: 1;
+  margin-right: 10px;
+}
+.chartBox:last-child {
+  margin-right: 0;
+}
+</style>

@@ -1,0 +1,24 @@
+import { ddosConfig } from './DDos'
+import { interFlowConfig } from './InterFlow'
+import { systemConfig } from './System'
+
+let routerMenuList: any = []
+routerMenuList = routerMenuList
+  .concat(ddosConfig)
+  .concat(interFlowConfig)
+  .concat(systemConfig)
+const routerLogs = (l: any) => {
+  return l.map((it: any) => {
+    return { name: it.name, path: it.path }
+  })
+}
+
+const routes = routerMenuList.map((item: any) => {
+  return item
+})
+routes.push({
+  path: '/',
+  redirect: 'home'
+})
+
+export { routes }

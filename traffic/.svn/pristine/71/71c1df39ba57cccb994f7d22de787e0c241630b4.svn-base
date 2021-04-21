@@ -1,0 +1,32 @@
+<!--
+ * @Author: fuping
+ * @Date: 2020-03-22
+ * @Description: 
+ -->
+<template>
+  <el-table :data="tableData" stripe style="width: 100%">
+    <el-table-column prop="date" label="序号"></el-table-column>
+    <el-table-column prop="name" label="攻击IP" width="120px"></el-table-column>
+    <el-table-column prop="address" label="端口"></el-table-column>
+    <el-table-column prop="date1" label="流量"></el-table-column>
+    <el-table-column prop="name1" label="包数"></el-table-column>
+    <el-table-column prop="address1" label="熵值"></el-table-column>
+    <el-table-column prop="date2" label="协议类型"></el-table-column>
+    <el-table-column prop="name2" label="攻击源"></el-table-column>
+    <el-table-column prop="name3" label="最大流量峰值速率"></el-table-column>
+    <el-table-column prop="address4" label="起始攻击时间"></el-table-column>
+    <el-table-column prop="date" label="攻击结束时间"></el-table-column>
+    <el-table-column prop="name5" label="攻击IP数量"></el-table-column>
+    <el-table-column prop="address6" label="疑似攻击类型"></el-table-column>
+    <el-table-column prop="address7" label="危险等级程度"></el-table-column>
+  </el-table>
+</template>
+
+<script lang="ts">
+import { Component, Prop, Vue } from 'vue-property-decorator'
+@Component({})
+export default class Table extends Vue {
+  @Prop() private tableData!: number[]
+  mounted() {}
+}
+</script>

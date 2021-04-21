@@ -1,0 +1,23 @@
+<!--
+ * @Author: fuping
+ * @Date: 2020-03-30
+ * @Description: 
+ -->
+<template>
+  <div>
+    <el-table :data="tableData" stripe style="width: 100%" height="100%">
+      <el-table-column prop="orderNum" label="排名" width="60px"></el-table-column>
+      <el-table-column prop="ip" label="IP" width="60px" show-overflow-tooltip></el-table-column>
+      <el-table-column prop="primaryPort" label="区/县" show-overflow-tooltip></el-table-column>
+      <el-table-column prop="volume" label="总流量(GB)" show-overflow-tooltip></el-table-column>
+    </el-table>
+  </div>
+</template>
+
+<script lang="ts">
+import { Component, Prop, Vue } from 'vue-property-decorator'
+@Component({})
+export default class Table extends Vue {
+  @Prop() private tableData!: number[]
+}
+</script>

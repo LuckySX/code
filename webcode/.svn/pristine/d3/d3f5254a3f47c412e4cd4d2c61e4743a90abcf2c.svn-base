@@ -1,0 +1,642 @@
+<!--
+ * @Author: fuping
+ * @Date: 2020-03-19 14:55:09
+ * @LastEditors: fuping
+ * @LastEditTime: 2020-05-09 15:40:29
+ * @Description: DDoS攻击事件概览
+ -->
+<template>
+  <div :class="overall.main">
+    <div :class="overall.dateBox">
+      <BorderBox title="筛选查询" type="search">
+        <VForm :option="formDateOp" ref="formDate"></VForm>
+      </BorderBox>
+    </div>
+    <div :class="overall.contentBox">
+      <div :class="overall.chartPart">
+        <div :class="overall.chartBox">
+          <BorderBox title="被攻击IP TOP5" type="bar">
+            <BaseCharts v-if="loadedBar" :option="barOption" ref="chartBar" @handlerClick="handlerClickBar"></BaseCharts>
+          </BorderBox>
+        </div>
+        <div :class="overall.chartBox">
+          <BorderBox title="高峰攻击速率/ 连接数" type="scatter">
+            <BaseCharts v-if="loadedScatter" :option="scatterOption" ref="chartScatter"></BaseCharts>
+          </BorderBox>
+        </div>
+      </div>
+      <div :class="overall.tablePart">
+        <BorderBox title="攻击事件" type="table" :class="overall.tableWrap">
+          <div :class="overall.tableForm">
+            <VForm :option="tableFormOp" ref="tableForm"></VForm>
+          </div>
+          <div :class="overall.tableContent">
+            <VTable
+              :option="tableOpt"
+              :height="tableHeight"
+              ref="table"
+              @handleSelectionChange="handleSelectionChange"
+              @handleCurrentPageChange="handleCurrentChange"
+            ></VTable>
+          </div>
+        </BorderBox>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script lang="ts">
+// @ is an alias to /src
+import { baseBarOption, baseScatterOption } from '@/views/Common/charts/chartsOption'
+import { Component, Vue, Ref } from 'vue-property-decorator'
+import BorderBox from '@/components/Common/BorderBox.vue'
+import { getSession } from '@/utils/cookiesUtil'
+import defaultsDeep from 'lodash/defaultsDeep'
+import replace from 'lodash/replace'
+import { http } from '@/common/request'
+import { ECharts } from 'echarts'
+import trim from 'lodash/trim'
+import max from 'lodash/max'
+import dayjs from 'dayjs'
+Component.registerHooks(['beforeRouteEnter'])
+const UrlIpTop5 = '/netSecur-web/newDDoS/getIpTop5' // 柱图数据url
+const UrlScatterPointbyIp = '/netSecur-web/newDDoS/getScatterPointbyIp' // 散点图数据url
+const UrlDDoSList = '/netSecur-web/newDDoS/getDDoSList' // 表格数据url
+const UrlExport = process.env.VUE_APP_BASE_API + '/netSecur-web/newDDoS/excelExport' // 表格导出按钮url
+interface IDefaultFormItems {
+  beginTime: string
+  endTime: string
+  ip?: string
+}
+interface IDefaultTableItems {
+  beginTime: string
+  endTime: string
+  primaryPort: string
+  protocol: string
+  attackType: string
+  rank: string
+  sort: string
+  order: string
+  page: number
+  rows: number
+  ip?: string // 多选
+}
+interface IParams {
+  code: number
+  data: number[]
+  message: string
+}
+// 导出，error提示没有数据不能导出，success可以导出
+enum exportFlag {
+  success = 1,
+  error = 0
+}
+@Component({
+  components: {
+    BorderBox
+  }
+})
+export default class Overall extends Vue {
+  @Ref() readonly formDate!: VP.VForm
+  @Ref() readonly tableForm!: VP.VForm
+  @Ref() readonly table!: VP.VTable
+  @Ref() readonly chartBar!: any | ECharts
+  @Ref() readonly chartScatter!: any | ECharts
+  private tableData: number[] = []
+  // 全局日期选择器
+  private formItems: IDefaultFormItems = {
+    beginTime: dayjs().format('YYYY-MM-DD'),
+    endTime: dayjs().format('YYYY-MM-DD')
+  }
+  // 协议类型
+  private protocolOpt = [
+    { name: '全部', value: '' },
+    { name: 'TCP SYN', value: 1 },
+    { name: 'ICMP', value: 2 },
+    { name: 'DNS Flood', value: 3 },
+    { name: 'UDP Flood', value: 4 },
+    { name: 'HTTP Flood', value: 5 },
+    { name: 'TCP Flood', value: 6 },
+    { name: 'NTP Flood', value: 7 }
+  ]
+  // 疑似攻击类型
+  private attackOpt = [
+    { name: '全部', value: '' },
+    { name: '资源消耗性攻击', value: 1 },
+    { name: '服务消耗性攻击', value: 2 },
+    { name: '反射类攻击', value: 3 },
+    { name: '混合型攻击', value: 4 }
+  ]
+  // 危险等级
+  private riskOpt = [
+    { name: '全部', value: '' },
+    { name: '低', value: 1 },
+    { name: '中', value: 2 },
+    { name: '高', value: 3 }
+  ]
+  private formDateOp: any = {
+    inline: true,
+    btnPos: 'left',
+    items: [
+      {
+        label: '开始时间：',
+        type: 'date',
+        comOpt: {
+          id: 'beginTime',
+          clearable: false,
+          value: dayjs().format('YYYY-MM-DD'),
+          type: 'date',
+          disabled: false,
+          pickOptions: {
+            disabledDate: this.startDisable
+          }
+        }
+      },
+      {
+        label: '结束时间：',
+        type: 'date',
+        comOpt: {
+          id: 'endTime',
+          clearable: false,
+          value: this.formItems.endTime,
+          type: 'date',
+          disabled: false,
+          pickOptions: {
+            disabledDate: this.endDisable
+          }
+        }
+      }
+    ],
+    btns: [
+      {
+        comOpt: {
+          id: 'query',
+          value: '查询',
+          width: 90,
+          disabled: false,
+          click: this.handleQueryBtn
+        }
+      }
+    ]
+  }
+  private tableFormOp: any = {
+    inline: true,
+    btnPos: 'left',
+    items: [
+      {
+        label: '被攻击者IP：',
+        type: 'text',
+        comOpt: {
+          id: 'ip',
+          width: 120,
+          disabled: false,
+          show: true,
+          placeholder: '请输入IP',
+          value: ''
+        }
+      },
+      {
+        label: '端口：',
+        type: 'text',
+        comOpt: {
+          id: 'primaryPort',
+          width: 120,
+          disabled: false,
+          show: true,
+          placeholder: '请输入端口',
+          value: ''
+        }
+      },
+      {
+        label: '协议类型：',
+        type: 'select',
+        comOpt: {
+          id: 'protocol',
+          width: 120,
+          value: '',
+          disabled: false,
+          placeholder: '请选择',
+          data: this.protocolOpt
+        }
+      },
+      {
+        label: '疑似攻击类型：',
+        type: 'select',
+        comOpt: {
+          id: 'attackType',
+          width: 120,
+          value: '',
+          disabled: false,
+          placeholder: '请选择',
+          data: this.attackOpt
+        }
+      },
+      {
+        label: '危险等级程度：',
+        type: 'select',
+        comOpt: {
+          id: 'rank',
+          width: 120,
+          value: '',
+          disabled: false,
+          placeholder: '请选择',
+          data: this.riskOpt
+        }
+      }
+    ],
+    btns: [
+      {
+        comOpt: {
+          id: 'query',
+          value: '查询',
+          width: 90,
+          disabled: false,
+          click: this.handleTableQueryBtn
+        }
+      },
+      {
+        comOpt: {
+          id: 'export',
+          value: '导出',
+          width: 90,
+          disabled: false,
+          click: this.handleTableExportBtn
+        }
+      }
+    ]
+  }
+  // 表格条件选择器
+  private tableformItems: IDefaultTableItems = {
+    beginTime: this.formItems.beginTime,
+    endTime: this.formItems.endTime,
+    primaryPort: '',
+    protocol: '',
+    attackType: '',
+    rank: '',
+    sort: 'volume',
+    order: 'desc',
+    page: 1,
+    rows: 5,
+    ip: ''
+  }
+  private tableOpt: any = {
+    stripe: true,
+    selection: true,
+    sortMode: 'single',
+    defaultSort: [
+      { prop: 'volume', order: 'descending' },
+      { prop: 'ip', order: '' },
+      { prop: 'packets', order: '' },
+      { prop: 'beginTime', order: '' },
+      { prop: 'endTime', order: '' },
+      { prop: 'sources', order: '' },
+      { prop: 'peakBand', order: '' }
+    ],
+    sortChange: this.sortChange,
+    column: [
+      { name: '序号', value: 'orderNum', width: 55 },
+      { name: '被攻击IP', value: 'ip', minWidth: 150, sortable: 'custom', tooltip: true },
+      {
+        name: '端口',
+        value: 'primaryPort',
+        tooltip: true,
+        formatter: this.tooltipFormatter
+      },
+      { name: '流量', value: 'volume', sortable: 'custom', tooltip: true },
+      { name: '包数', value: 'packets', sortable: 'custom', tooltip: true },
+      { name: '熵值', value: 'entropy', tooltip: true, formatter: this.tooltipFormatter },
+      { name: '协议类型', value: 'protocol', minWidth: 120, tooltip: true },
+      { name: '起始攻击时间', value: 'beginTime', minWidth: 130, sortable: 'custom', tooltip: true },
+      { name: '攻击结束时间', value: 'endTime', minWidth: 130, sortable: 'custom', tooltip: true },
+      { name: '攻击IP数量', value: 'sources', minWidth: 120, sortable: 'custom', tooltip: true },
+      { name: '疑似攻击类型', value: 'attackType', minWidth: 120, tooltip: true, formatter: this.tooltipFormatter },
+      { name: '危险等级程度', value: 'rank', minWidth: 120, tooltip: true },
+      {
+        name: '最大流量峰值速率',
+        value: 'peakBand',
+        minWidth: 180,
+        sortable: 'custom',
+        tooltip: true,
+        formatter: function(row: any, column: any, cellValue: any) {
+          return cellValue + 'kb/s'
+        }
+      },
+      {
+        name: '操作',
+        value: '',
+        align: 'center',
+        fixed: 'right',
+        operations: [
+          {
+            label: '详情',
+            disCallBack() {
+              return false
+            },
+            handlerClick: this.handleTableClick
+          }
+        ]
+      }
+    ],
+    data: [],
+    pagination: true,
+    pageOpt: {
+      currentPage: 1,
+      total: 0,
+      pageSizes: [5, 10, 20, 30, 40, 50],
+      pageSize: 5
+    }
+  }
+  private tableHeight = 'calc(100% - 32px)'
+  // 多选
+  private multipleSelection: string
+  private loadedBar = false
+  private loadedScatter = true
+  private firstBarData: string
+  // echarts bar
+  private newBarOption = {
+    yAxis: [
+      {
+        name: 'IP',
+        data: []
+      },
+      {
+        name: '攻击总流量'
+      }
+    ],
+    series: [
+      {
+        data: []
+      },
+      {
+        data: []
+      }
+    ]
+  } as any
+  private newScatterOp = {
+    series: [
+      {
+        data: []
+      }
+    ]
+  } as any
+  private scatterData = [
+    { name: '80', value: 30 },
+    { name: '90', value: 80 }
+  ]
+  private barOption: any = defaultsDeep(this.newBarOption, baseBarOption)
+  private scatterOption: any = defaultsDeep(this.newScatterOp, baseScatterOption)
+  // 页码
+  private pageOption: any = {
+    total: 0,
+    currentPage: 1
+  }
+  private exportType: exportFlag = exportFlag.error
+  mounted() {
+    this.handleQueryBtn()
+  }
+  beforeRouteEnter(to, from, next) {
+    next(vm => {
+      if (vm.$route.path !== '/DDosDetails') {
+        vm.$route.meta.keepAlive = false
+      } else {
+        vm.$route.meta.keepAlive = true
+      }
+    })
+  }
+
+  // methods
+  // 全局查询按钮
+  handleQueryBtn() {
+    this.formItems = this.formDate.getValue()
+    this.tableformItems = defaultsDeep(this.tableForm.getValue(), this.tableformItems)
+    this.tableformItems = defaultsDeep(this.formItems, this.tableformItems)
+    this.tableformItems.page = 1
+    this.getBarData()
+    this.getTableData()
+  }
+  // 表格查询按钮
+  handleTableQueryBtn() {
+    this.tableformItems = defaultsDeep(this.tableForm.getValue(), this.tableformItems)
+    this.tableformItems.primaryPort = trim(this.tableformItems.primaryPort)
+    this.tableformItems.ip = trim(this.tableformItems.ip)
+    this.tableformItems.page = 1
+    this.getTableData()
+  }
+  // 表格重置按钮
+  handleTableResetBtn() {
+    this.tableformItems = {
+      beginTime: this.formItems.beginTime,
+      endTime: this.formItems.endTime,
+      primaryPort: '',
+      protocol: '',
+      attackType: '',
+      rank: '',
+      sort: 'ip',
+      order: 'desc',
+      page: 1,
+      rows: 5
+    }
+  }
+  // 表格导出按钮
+  handleTableExportBtn() {
+    if (this.exportType === 0) {
+      this.$message({
+        message: '无数据',
+        type: 'warning'
+      })
+    } else {
+      window.location.href = `${UrlExport}?${this.getParmas(this.tableformItems)}&type=1&eIp=${this.multipleSelection}&token=${getSession('SZToken')}`
+    }
+  }
+  // 表格多选
+  handleSelectionChange(val: any) {
+    const arr: any = []
+    val.forEach(v => {
+      arr.push(v.ip)
+    })
+    this.multipleSelection = arr.toString()
+  }
+  // 格式化参数
+  getParmas(data: any) {
+    let parmas: any = ''
+    for (const key in data) {
+      parmas += `${key}=${data[key]}&`
+    }
+    return parmas.slice(0, -1)
+  }
+  // 获取柱图数据
+  getBarData() {
+    http.post<IParams>(UrlIpTop5, this.formItems).then((resp: any) => {
+      const { data } = resp
+      if (data.length === 0) {
+        data.push({
+          name: '无数据',
+          value: 0
+        })
+      }
+      const barData = data.sort((a: any, b: any) => {
+        return a.value - b.value
+      })
+      const itemData: number[] = []
+      const itemName: string[] = []
+      barData.forEach((i: any) => {
+        itemData.push(i.value)
+        itemName.push(i.name)
+      })
+      const maxValue: any = max(itemData)
+      this.barOption.series[0].data = barData
+      this.barOption.series[1].data = itemData.map((val: any) => {
+        val = maxValue
+        return val
+      })
+      this.barOption.yAxis[0].data = itemName
+      this.barOption.yAxis[1].data = itemData
+      // 第一条数据
+      this.firstBarData = barData.length > 0 ? barData[barData.length - 1].name : ''
+      this.loadedBar = true
+      this.getScatterData()
+    })
+  }
+  // 获取散点图数据
+  getScatterData() {
+    const params: IDefaultFormItems = {
+      beginTime: this.formItems.beginTime,
+      endTime: this.formItems.endTime,
+      ip: this.firstBarData
+    }
+    http.post<IParams>(UrlScatterPointbyIp, params).then((resp: any) => {
+      const { data } = resp
+      const chartData: any = []
+      data.forEach((i: any) => {
+        chartData.push([i.packets, i.volumeRate])
+      })
+      this.scatterOption.series[0].data = chartData
+    })
+  }
+  // 获取表格数据
+  getTableData() {
+    http.post<IParams>(UrlDDoSList, this.tableformItems).then((resp: any) => {
+      const {
+        data: { rows, total, pageNo }
+      } = resp
+      if (rows.length > 0) {
+        this.exportType = exportFlag.success
+      } else {
+        this.exportType = exportFlag.error
+      }
+      this.tableOpt.data = rows
+      this.tableOpt.pageOpt.total = total
+      this.tableOpt.pageOpt.currentPage = pageNo
+    })
+  }
+  // 点击柱图事件
+  handlerClickBar(e: any) {
+    this.firstBarData = e.name
+    this.getScatterData()
+  }
+  // 点击页码
+  handleCurrentChange(page: number) {
+    this.tableformItems.page = page
+    this.getTableData()
+  }
+  handleSizeChange(val: number) {
+    this.tableformItems.rows = val
+    this.tableformItems.page = 1
+    this.pageOption.currentPage = 1
+    this.getTableData()
+  }
+  // 排序
+  sortChange(column: object) {
+    const data = column
+    let sortName = ''
+    let sortType = ''
+    for (const key in column) {
+      if (Object.prototype.hasOwnProperty.call(column, key)) {
+        sortName = key
+        sortType = column[key]
+      }
+    }
+    this.tableformItems.order = replace(sortType, 'ending', '')
+    this.tableformItems.sort = sortName
+    this.getTableData()
+  }
+  //点击表格跳转事件
+  handleTableClick(val: any) {
+    this.$router.push({
+      path: '/DDosDetails',
+      query: {
+        beginTime: val.beginTime,
+        endTime: val.endTime,
+        ip: val.ip
+      }
+    })
+  }
+  // 格式化tooltip
+  tooltipFormatter(row: any, column: any) {
+    const data = row[column.property]
+    return data.split(',').join('\n')
+  }
+  // 根据结束时间联动，不能大于结束时间
+  startDisable(time: Date) {
+    const endDateVal = this.formDate.getValue().endTime
+    if (endDateVal) {
+      return time.getTime() > new Date(endDateVal).getTime()
+    }
+  }
+  // 根据开始时间联动，只能选择开始时间之前
+  endDisable(time: Date) {
+    const beginDateVal = this.formDate.getValue().beginTime
+    if (beginDateVal) {
+      return time.getTime() < new Date(beginDateVal).getTime() - 1 * 24 * 60 * 60 * 1000
+    }
+  }
+  // 处理keep-alive缓存返回时echart 高度宽度
+  activated() {
+    if (this.chartBar) {
+      this.chartBar.resizeEventHandler()
+    }
+    if (this.chartScatter) {
+      this.chartScatter.resizeEventHandler()
+    }
+  }
+}
+</script>
+<style module="overall">
+.main {
+  width: 100%;
+  height: 100%;
+  text-align: left;
+}
+.dateBox {
+  height: 40px;
+}
+.contentBox {
+  height: calc(100% - 50px);
+  margin-top: 10px;
+}
+.chartPart {
+  display: flex;
+  width: 100%;
+  height: calc(35% - 10px);
+  margin-bottom: 10px;
+  justify-content: space-between;
+}
+.chartBox {
+  width: calc(50% - 5px);
+  height: 100%;
+}
+.tablePart {
+  width: 100%;
+  height: 65%;
+  overflow-x: scroll;
+}
+.tableForm {
+  position: relative;
+}
+.tableContent {
+  height: calc(100% - 40px);
+}
+.tableWrap {
+  min-width: 1280px;
+}
+</style>

@@ -1,0 +1,598 @@
+<!--
+ * @Author: fuping
+ * @Date: 2020-06-10 11:05:23
+ * @LastEditors: niumiaomiao
+ * @LastEditTime: 2020-07-22 09:50:37
+ * @Description: 用户访问查询
+-->
+<template>
+  <div :class="domainUser.container">
+    <div :class="domainUser.leftPart">
+      <BorderBox title="用户访问TOP统计" type="bar">
+        <div :class="domainUser.tabBox">
+          <el-tabs v-model="activeName" type="card" @tab-click="handleTabClick">
+            <el-tab-pane label="昨日" name="1"></el-tab-pane>
+            <el-tab-pane label="近七天" name="7"></el-tab-pane>
+          </el-tabs>
+        </div>
+        <div :class="domainUser.chartPart" ref="chartBox">
+          <div :class="domainUser.chartBox" :style="chartHeight">
+            <BaseCharts v-if="isActive" :option="barOption" ref="bar"></BaseCharts>
+          </div>
+        </div>
+      </BorderBox>
+    </div>
+    <div :class="domainUser.rightPart">
+      <BorderBox title="恶意域名访问日统计记录" type="table">
+        <div v-if="activeName1 === 0" :class="domainUser.search1">
+          <div :class="domainUser.searchBg"></div>
+          <VForm :option="formObj1" ref="form1"></VForm>
+        </div>
+        <div v-else style="height: 100%">
+          <div :class="domainUser.form2">
+            <VForm :option="formObj2" ref="form2"></VForm>
+          </div>
+          <div :class="domainUser.tableBox">
+            <VTable
+              :option="tableOpt"
+              :height="tableHeight"
+              ref="table"
+              @handleCurrentPageChange="handleCurrentChange"
+              @handleSizePageChange="handleSizeChange"
+            ></VTable>
+          </div>
+        </div>
+      </BorderBox>
+    </div>
+  </div>
+</template>
+
+<script lang="ts">
+import { barRankOption } from '@/views/Common/charts/barRankOption'
+import { Component, Vue, Ref } from 'vue-property-decorator'
+import { defaultsDeep, trim, assign } from 'lodash'
+import BorderBox from '@/components/Common/BorderBox.vue'
+import { http } from '@/common/request'
+import { getCookies } from '@/utils/cookiesUtil'
+import { ECharts } from 'echarts'
+import dayjs from 'dayjs'
+
+const UrlBar = '/newMalice/userVisitQueryTop'
+const UrlTable = '/newMalice/userVisitQuery'
+const UrlExport = process.env.VUE_APP_BASE_API + '/newMalice/userVisitQueryExcel'
+interface IDomainPie {
+  name: string
+  value: number
+}
+interface IDomainBar {
+  xAxisData: string[]
+  data: []
+}
+interface IDomainTable {
+  rows: number[]
+  total: number
+}
+interface IDefaultTableItems {
+  sort: string
+  order: string
+  page: number
+  rows: number
+  domain: string
+  ip: string
+  startTime: string
+  endTime: string
+}
+// 导出，error提示没有数据不能导出，success可以导出
+enum exportFlag {
+  success = 1,
+  error = 0
+}
+@Component({
+  components: {
+    BorderBox
+  }
+})
+export default class Overall extends Vue {
+  @Ref() readonly form1!: VP.VForm
+  @Ref() readonly form2!: VP.VForm
+  @Ref() readonly table!: VP.VTable
+  @Ref() readonly bar!: any | ECharts
+  @Ref() readonly chartBox: any
+  private activeName = '1'
+  private activeName1 = 0
+  private isActive = true
+  private chartH = 0
+  private tableData: number[] = []
+  private exportType: exportFlag = exportFlag.error
+  // 表格条件选择器
+  private tableformItems: IDefaultTableItems = {
+    sort: 'counts',
+    order: 'desc',
+    page: 1,
+    rows: 20,
+    ip: '',
+    domain: '',
+    startTime: '',
+    endTime: ''
+  }
+  private tableOpt: any = {
+    stripe: true,
+    sortMode: 'single',
+    defaultSort: [{ prop: 'counts', order: 'descending' }],
+    sortChange: this.sortChange,
+    column: [
+      { name: '序号', value: 'orderNum', width: 55 },
+      { name: '用户IP', value: 'ip', minWidth: 120, sortable: true, tooltip: true },
+      { name: '域名', value: 'domain', minWidth: 150, sortable: true, tooltip: true },
+      { name: '恶意类型', value: 'type', minWidth: 100, sortable: true, tooltip: true },
+      { name: '访问次数', value: 'counts', minWidth: 100, sortable: true, tooltip: true },
+      { name: '访问时间', value: 'time', minWidth: 150, sortable: true, tooltip: true }
+    ],
+    data: [],
+    pagination: true,
+    pageOpt: {
+      currentPage: 1,
+      total: 0,
+      pageSizes: [5, 10, 20, 30, 40, 50],
+      pageSize: 20
+    }
+  }
+  private tableHeight = 'calc(100% - 80px)'
+  private barOption: any = defaultsDeep(barRankOption)
+  private formObj1: any = {
+    inline: true,
+    items: [
+      {
+        label: '起止日期：',
+        type: 'date',
+        comOpt: {
+          id: 'startTime',
+          width: 130,
+          clearable: false,
+          value: dayjs()
+            .subtract(1, 'day')
+            .format('YYYY-MM-DD'),
+          type: 'date',
+          disabled: false,
+          pickOptions: {
+            disabledDate: this.startDisable
+          }
+        }
+      },
+      {
+        label: '',
+        type: 'date',
+        comOpt: {
+          id: 'endTime',
+          width: 130,
+          clearable: false,
+          value: dayjs()
+            .subtract(1, 'day')
+            .format('YYYY-MM-DD'),
+          type: 'date',
+          disabled: false,
+          pickOptions: {
+            disabledDate: this.endDisable
+          }
+        }
+      },
+      {
+        label: 'IP：',
+        type: 'text',
+        comOpt: {
+          id: 'ip',
+          width: 140,
+          placeholder: '请输入IP'
+        }
+      },
+      {
+        label: '域名：',
+        type: 'text',
+        comOpt: {
+          id: 'domain',
+          width: 140,
+          placeholder: '请输入域名'
+        }
+      }
+    ],
+    btns: [
+      {
+        comOpt: {
+          id: 'query',
+          value: '查询',
+          disabled: false,
+          click: this.form1Event
+        }
+      }
+    ]
+  }
+  private formObj2: any = {
+    inline: true,
+    items: [
+      {
+        label: '起止日期：',
+        type: 'date',
+        comOpt: {
+          id: 'startTime',
+          width: 130,
+          clearable: false,
+          value: dayjs()
+            .subtract(1, 'day')
+            .format('YYYY-MM-DD'),
+          type: 'date',
+          disabled: false,
+          pickOptions: {
+            disabledDate: this.startDisable1
+          }
+        }
+      },
+      {
+        label: '',
+        type: 'date',
+        comOpt: {
+          id: 'endTime',
+          width: 130,
+          clearable: false,
+          value: dayjs()
+            .subtract(1, 'day')
+            .format('YYYY-MM-DD'),
+          type: 'date',
+          disabled: false,
+          pickOptions: {
+            disabledDate: this.endDisable1
+          }
+        }
+      },
+      {
+        label: 'IP：',
+        type: 'text',
+        comOpt: {
+          id: 'ip',
+          width: 140,
+          placeholder: '请输入IP'
+        }
+      },
+      {
+        label: '域名：',
+        type: 'text',
+        wrap: true,
+        comOpt: {
+          id: 'domain',
+          width: 140,
+          placeholder: '请输入域名'
+        }
+      }
+    ],
+    btns: [
+      {
+        comOpt: {
+          id: 'query',
+          value: '查询',
+          disabled: false,
+          click: this.handleTableQueryBtn
+        }
+      },
+      {
+        comOpt: {
+          id: 'reset',
+          value: '重置',
+          disabled: false,
+          click: this.handleTableResetBtn
+        }
+      },
+      {
+        comOpt: {
+          id: 'export',
+          value: '导出',
+          disabled: false,
+          click: this.handleTableExportBtn
+        }
+      }
+    ]
+  }
+  get chartHeight() {
+    return {
+      minHeight: this.chartH + 'px'
+    }
+  }
+  created() {
+    this.chartHeight
+  }
+  mounted() {
+    this.init()
+  }
+  init() {
+    this.getBarData()
+  }
+  handleTabClick(tab: any) {
+    this.activeName = tab.name
+    this.chartBox.scrollTop = 0
+    this.getBarData()
+  }
+  // 获取柱图数据
+  getBarData() {
+    this.barOption.yAxis[0].data = []
+    this.barOption.yAxis[1].data = []
+    this.barOption.series[1].data = []
+    this.barOption.series[0].data = []
+    http
+      .post<IDomainBar>(UrlBar, { time: this.activeName })
+      .then((resp: any) => {
+        const { data } = resp
+        // 处理数据为空时的高度
+        if (data.length === 0) {
+          this.chartH = 0
+        }
+        if (data.length > 5) {
+          this.chartH = data.length * 55
+        }
+        data.reverse()
+        const itemData: number[] = []
+        const titleData: object[] = []
+        const seriesData: object[] = []
+        data.forEach((items, index) => {
+          itemData.push(items.counts)
+          seriesData.push({
+            value: items.counts,
+            ip: items.ip,
+            domain: items.domain
+          })
+          const title = [items.orderNum, items.ip, items.domain]
+          titleData.push(title)
+        })
+        // 所有数据最大值
+        const maxValue = Math.max.apply(null, itemData)
+        this.barOption.yAxis[0].data = titleData
+        this.barOption.yAxis[1].data = itemData
+        this.barOption.series[1].data = itemData.map(d => {
+          return maxValue
+        })
+        this.barOption.series[0].data = seriesData
+        this.$nextTick(() => {
+          if (this.bar) {
+            this.bar.resizeEventHandler()
+          }
+        })
+      })
+  }
+  form1Event() {
+    const params = this.form1.getValue()
+    this.inputValidEvent(params, 0)
+  }
+  form1Change() {
+    const { startTime, endTime, ip, domain } = this.form1.getValue()
+    this.activeName1 = 1
+    this.$nextTick(() => {
+      if (this.form2) {
+        this.form2.setValue([
+          { id: 'startTime', value: startTime },
+          { id: 'endTime', value: endTime },
+          { id: 'ip', value: ip },
+          { id: 'domain', value: domain }
+        ])
+        setTimeout(_ => {
+          this.tableItemFormat()
+        }, 0)
+      }
+    })
+  }
+  // 表格查询按钮
+  handleTableQueryBtn() {
+    // 点击查询按钮表格就恢复默认排序
+    setTimeout(_ => {
+      this.table.initSort()
+    }, 0)
+    const params = this.form2.getValue()
+    this.inputValidEvent(params, 1)
+  }
+  inputValidEvent(params, type) {
+    if (type === 1) {
+      this.tableItemFormat()
+    } else {
+      this.form1Change()
+    }
+    // const ipInput = trim(params.ip)
+    // // 校验ip
+    // if (ipInput.length > 0 && !this.isValidIP(ipInput)) {
+    //   this.$message({
+    //     message: '请输入正确的IP',
+    //     type: 'error'
+    //   })
+    // } else {
+    //   if (type === 1) {
+    //     this.tableItemFormat()
+    //   } else {
+    //     this.form1Change()
+    //   }
+    // }
+  }
+  tableItemFormat() {
+    assign(this.tableformItems, this.form2.getValue())
+    if (this.tableformItems.domain.match('%')) {
+      this.tableformItems.domain = '%25'
+    }
+    this.tableformItems.domain = trim(this.tableformItems.domain)
+    this.tableformItems.ip = trim(this.tableformItems.ip)
+    this.tableformItems.page = 1
+    this.getTableData()
+  }
+  // 获取表格数据
+  getTableData() {
+    http.post<IDomainTable>(UrlTable, this.tableformItems).then((resp: any) => {
+      console.log(resp)
+      const {
+        data: { rows, total, pageNo }
+      } = resp
+      if (rows.length > 0) {
+        this.exportType = exportFlag.success
+      } else {
+        this.exportType = exportFlag.error
+      }
+      this.tableOpt.data = rows
+      this.tableOpt.pageOpt.total = total
+    })
+  }
+  // 排序
+  sortChange(column: object) {
+    const name: string = Object.keys(column)[0]
+    if (column[name] === 'descending') {
+      this.tableformItems.order = 'desc'
+    } else {
+      this.tableformItems.order = 'asc'
+    }
+    this.tableformItems.sort = name
+    this.getTableData()
+  }
+  // 点击页码
+  handleCurrentChange(page: number) {
+    this.tableformItems.page = page
+    this.getTableData()
+  }
+  handleSizeChange(val: number) {
+    this.tableformItems.rows = val
+    this.tableformItems.page = 1
+    this.tableOpt.pageOpt.currentPage = 1
+    this.getTableData()
+  }
+  // 表格重置按钮
+  handleTableResetBtn() {
+    this.form2.clearValue()
+    // 默认昨天有数据
+    this.form2.setValue([
+      { id: 'type', value: 'ip' },
+      {
+        id: 'startTime',
+        value: dayjs()
+          .subtract(1, 'day')
+          .format('YYYY-MM-DD')
+      },
+      {
+        id: 'endTime',
+        value: dayjs()
+          .subtract(1, 'day')
+          .format('YYYY-MM-DD')
+      }
+    ])
+  }
+  // 表格导出按钮
+  handleTableExportBtn() {
+    if (this.exportType === 0) {
+      this.$message({
+        message: '无数据',
+        type: 'warning'
+      })
+    } else {
+      const { sort, order, ip, domain, startTime, endTime } = this.tableformItems
+      window.location.href = `${UrlExport}?sort=${sort}&order=${order}&ip=${ip}&domain=${domain}&startTime=${startTime}&endTime=${endTime}&token=${getCookies(
+        'szCode'
+      )}`
+    }
+  }
+  // 格式化参数
+  getParmas(data: any) {
+    let parmas: any = ''
+    for (const key in data) {
+      parmas += `${key}=${data[key]}&`
+    }
+    return parmas.slice(0, -1)
+  }
+  // 切换选择框时输入框清空
+  selectChange1() {
+    this.form1 && this.form1.setValue([{ id: 'name', value: '' }])
+  }
+  selectChange2() {
+    this.form2 && this.form2.setValue([{ id: 'name', value: '' }])
+  }
+  isValidIP(ip) {
+    const reg = /^(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])$/
+    return reg.test(ip)
+  }
+  // 根据结束时间联动，不能大于结束时间
+  startDisable(time: Date) {
+    const endDateVal = this.form1.getValue().endTime
+    if (endDateVal) {
+      return time.getTime() > new Date(endDateVal).getTime()
+    }
+  }
+  // 根据开始时间联动，只能选择开始时间之前
+  endDisable(time: Date) {
+    const beginDateVal = this.form1.getValue().startTime
+    if (beginDateVal) {
+      return time.getTime() < new Date(beginDateVal).getTime() - 1 * 24 * 60 * 60 * 1000
+    }
+    // 只能选择今日以前且不大于开始时间
+    // const beginDateVal = this.form1.getValue().startTime
+    // const endDateVal = this.form1.getValue().endTime
+    // if (beginDateVal) {
+    //   return time.getTime() > new Date(endDateVal).getTime() || time.getTime() < new Date(beginDateVal).getTime() - 1 * 24 * 60 * 60 * 1000
+    // }
+  }
+  // 根据结束时间联动，不能大于结束时间
+  startDisable1(time: Date) {
+    const endDateVal = this.form2.getValue().endTime
+    if (endDateVal) {
+      return time.getTime() > new Date(endDateVal).getTime()
+    }
+  }
+  // 根据开始时间联动，只能选择开始时间之前
+  endDisable1(time: Date) {
+    const beginDateVal = this.form2.getValue().startTime
+    if (beginDateVal) {
+      return time.getTime() < new Date(beginDateVal).getTime() - 1 * 24 * 60 * 60 * 1000
+    }
+  }
+}
+</script>
+<style module="domainUser">
+.container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: space-between;
+}
+.leftPart {
+  position: relative;
+  width: 30%;
+  min-width: 410px;
+  height: 100%;
+  margin-right: 10px;
+}
+.rightPart {
+  width: calc(70% - 10px);
+  height: 100%;
+}
+.tabBox {
+  position: absolute;
+  top: 8px;
+  right: 0;
+}
+.chartPart {
+  width: 100%;
+  height: 100%;
+  overflow: scroll;
+}
+.chartBox {
+  width: 100%;
+  height: 100%;
+}
+.search1 {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  flex-flow: column;
+}
+.form2 {
+  min-width: 720px;
+}
+.searchBg {
+  width: 550px;
+  height: 290px;
+  background: url('~@/assets/images/domain/searchbg.png') no-repeat center;
+  background-position: 50% 50%;
+}
+.tableBox {
+  height: calc(100% - 40px);
+}
+</style>

@@ -1,0 +1,393 @@
+<!--
+ * @Author: zhangjipei
+ * @Date: 2020-03-30 14:38:34
+ * @LastEditors: zhangjipei
+ * @LastEditTime: 2020-04-08 10:49:43
+ * @Description: 
+ -->
+<template>
+  <div :class="keyAsset.container">
+    <div :class="keyAsset.topBox">
+      <span :class="keyAsset.timeBox">{{ currentTime }}</span>
+      <BorderBox title="当前深圳市流量检测情况" type="info2">
+        <TableOne :tableData="tableDataOne"></TableOne>
+      </BorderBox>
+    </div>
+    <div :class="keyAsset.bottomBox">
+      <div :class="keyAsset.leftBox">
+        <BorderBox title="单位目录" type="table">
+          <div :class="keyAsset.tableForm">
+            <el-form :inline="true" :model="tableformItems">
+              <el-form-item>
+                <el-select v-model="tableformItems.county" placeholder="请选择区">
+                  <el-option
+                    v-for="item in areaOpt"
+                    :key="item.value"
+                    :label="item.label"
+                    :value="item.value"
+                  ></el-option>
+                </el-select>
+              </el-form-item>
+              <el-form-item>
+                <el-select v-model="tableformItems.categories" placeholder="请选择行业">
+                  <el-option
+                    v-for="item in industryOpt"
+                    :key="item.value"
+                    :label="item.label"
+                    :value="item.value"
+                  ></el-option>
+                </el-select>
+              </el-form-item>
+              <el-form-item>
+                <el-input v-model="tableformItems.companyName" placeholder="请输入"></el-input>
+              </el-form-item>
+              <el-form-item>
+                <el-button type="primary" @click="handleTableQueryBtn">查询</el-button>
+              </el-form-item>
+            </el-form>
+          </div>
+          <div :class="keyAsset.tableContent">
+            <TableTwo :class="keyAsset.tableBox" :tableData="tableDataTwo"></TableTwo>
+            <Pagination
+              :option="pageOption"
+              @handleCurrentChange="handleCurrentChange"
+            ></Pagination>
+          </div>
+        </BorderBox>
+      </div>
+      <div :class="keyAsset.rightBox">
+        <BorderBox title="基本信息" type="table">
+          <div :class="keyAsset.infoTitle">
+            <el-tooltip effect="dark" :content="companyInfo.companyName" placement="top">
+              <div :class="keyAsset.titleLeft">
+                {{ companyInfo.companyName }}
+              </div>
+            </el-tooltip>
+            <div :class="keyAsset.titleRight">
+              <span>所属区域：{{ companyInfo.county }}</span>
+              <span>所属行业：{{ companyInfo.categories }}</span>
+              <span>
+                所属IP情况：共有IP{{ companyInfo.ips }}个 共有网站{{ companyInfo.domains }}个
+              </span>
+            </div>
+          </div>
+          <div :class="keyAsset.infoForm">
+            <el-form :inline="true" :model="infoformItems">
+              <el-form-item label="查询时间：">
+                <el-date-picker
+                  v-model="infoformItems.startTime"
+                  type="date"
+                  placeholder=""
+                  align="right"
+                  value-format="yyyy-MM-dd"
+                  :picker-options="startPickerOptions"
+                  :disabled="datePickerDisabled"
+                ></el-date-picker>
+              </el-form-item>
+              <el-form-item>
+                <el-date-picker
+                  v-model="infoformItems.endTime"
+                  type="date"
+                  placeholder=""
+                  align="right"
+                  value-format="yyyy-MM-dd"
+                  :picker-options="endPickerOptions"
+                  :disabled="datePickerDisabled"
+                ></el-date-picker>
+              </el-form-item>
+              <el-form-item>
+                <el-radio-group v-model="infoformItems.timeSelect" @change="timeSelectChange">
+                  <el-radio :label="0">当天</el-radio>
+                  <el-radio :label="1">7天</el-radio>
+                  <el-radio :label="2">30天</el-radio>
+                  <el-radio :label="3">90天</el-radio>
+                </el-radio-group>
+              </el-form-item>
+            </el-form>
+            <div :class="keyAsset.buttonBox">
+              <el-button type="primary" @click="handleInfoTableQueryBtn">查询</el-button>
+              <el-button type="primary" @click="handleInfoTableExportBtn">导出</el-button>
+            </div>
+          </div>
+          <div :class="keyAsset.infoContent">
+            <TableThree :class="keyAsset.tableBox" :tableData="tableDataThree"></TableThree>
+            <Pagination
+              :option="pageOption2"
+              @handleCurrentChange="handleCurrentChange2"
+              @handleSizeChange="handleSizeChange"
+            ></Pagination>
+          </div>
+        </BorderBox>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script lang="ts">
+import { Component, Vue } from 'vue-property-decorator'
+import { http } from '@/common/request'
+import BorderBox from '@/components/Common/BorderBox.vue'
+import TableOne from './components/TableOne.vue'
+import TableTwo from './components/TableTwo.vue'
+import TableThree from './components/TableThree.vue'
+import Pagination from './components/Pagination.vue'
+import dayjs from 'dayjs'
+interface IAssetParams<T = any> {
+  code: number
+  message: string
+  data: number[]
+}
+@Component({
+  components: {
+    BorderBox,
+    TableOne,
+    TableTwo,
+    Pagination,
+    TableThree
+  }
+})
+export default class KeyAsset extends Vue {
+  private currentTime = dayjs().format('YYYY年MM月DD日')
+  private tableDataOne: any[] = []
+  private tableformItems = {
+    county: null,
+    categories: null,
+    companyName: '',
+    sort: 'companyName',
+    order: 'desc',
+    page: 1,
+    rows: 50
+  }
+  private areaOpt = [
+    { label: '全部', value: '' }
+    // { label: '罗湖区', value: 0 },
+    // { label: '福田区', value: 1 },
+    // { label: '南山区', value: 2 },
+    // { label: '宝安区', value: 3 },
+    // { label: '龙岗区', value: 4 },
+    // { label: '盐田区', value: 5 },
+    // { label: '龙华区', value: 6 },
+    // { label: '坪山区', value: 7 }
+  ]
+  private industryOpt = [{ label: '全部', value: '' }]
+  private tableDataTwo: string[] = []
+  private pageOption: any = {
+    total: 0,
+    currentPage: 1
+  }
+  private companyInfo: any = {
+    companyName: 'XX有限公司（ 市管单位直属机构 ）',
+    county: 'XX',
+    categories: 'XX',
+    ips: 8,
+    domains: 8
+  }
+  private infoformItems = {
+    startTime: dayjs().format('YYYY-MM-DD'),
+    endTime: dayjs().format('YYYY-MM-DD'),
+    timeSelect: 0,
+    companyId: '',
+    companyName: '',
+    domain: '',
+    ip: '',
+    page: 1,
+    rows: 50,
+    sort: 'companyId',
+    order: 'desc'
+  }
+  // 只能选择开始时间之前
+  private startPickerOptions = {
+    disabledDate: (time: Date) => {
+      const endDateVal = this.infoformItems.endTime
+      if (endDateVal) {
+        return time.getTime() > new Date(endDateVal).getTime()
+      }
+    }
+  }
+  // 只能选择当前时间之后
+  private endPickerOptions = {
+    disabledDate: (time: Date) => {
+      const startDateVal = this.infoformItems.startTime
+      if (startDateVal) {
+        return time.getTime() < new Date(startDateVal).getTime()
+      }
+    }
+  }
+  private datePickerDisabled = true
+  private radioTimeList = [0, 7, 30, 90]
+  private tableDataThree: string[] = []
+  private pageOption2: any = {
+    total: 0,
+    currentPage: 1,
+    layout: 'total, sizes, prev, pager, next, jumper'
+  }
+  mounted() {
+    console.log(this.$route.query.type, this.$route.query.value)
+    this.getCityData()
+    this.getDropList()
+    this.getCompanyList()
+    this.getBasicInfo()
+  }
+  getCityData() {
+    http.post<IAssetParams>('/netSecur-web/KeyAsset/keyAssetsStatistic').then((resp: any) => {
+      this.tableDataOne = [resp.data]
+    })
+  }
+  getDropList() {
+    http.post<IAssetParams>('/netSecur-web/KeyAsset/dropList').then((resp: any) => {
+      const {
+        data: { categories, countis }
+      } = resp
+      categories.forEach(item => {
+        this.industryOpt.push({
+          label: item.dropName,
+          value: item.dropName
+        })
+      })
+      countis.forEach(item => {
+        this.areaOpt.push({
+          label: item.dropName,
+          value: item.dropName
+        })
+      })
+    })
+  }
+  getCompanyList() {
+    http
+      .post<IAssetParams>('/netSecur-web/KeyAsset/companyInfoList', this.tableformItems)
+      .then((resp: any) => {
+        this.tableDataTwo = resp.data.rows
+        this.pageOption.total = resp.data.total
+      })
+  }
+  getBasicInfo() {
+    http
+      .post<IAssetParams>('/netSecur-web/KeyAsset/keyAssetTesting', this.infoformItems)
+      .then((resp: any) => {
+        this.companyInfo = resp.data
+        this.getBasicTable()
+      })
+  }
+  getBasicTable() {
+    http
+      .post<IAssetParams>('/netSecur-web/KeyAsset/KeyAssetTestingPage', this.infoformItems)
+      .then((resp: any) => {
+        this.tableDataThree = resp.data.rows
+        this.pageOption2.total = resp.data.total
+      })
+  }
+  handleTableQueryBtn() {
+    this.getCompanyList()
+  }
+  handleCurrentChange(page: number) {
+    this.tableformItems.page = page
+    this.getCompanyList()
+  }
+  timeSelectChange(label: number) {
+    this.infoformItems.startTime = dayjs()
+      .subtract(this.radioTimeList[label], 'day')
+      .format('YYYY-MM-DD')
+    this.infoformItems.endTime = dayjs().format('YYYY-MM-DD')
+  }
+  handleInfoTableQueryBtn() {
+    this.getBasicTable()
+  }
+  handleInfoTableExportBtn() {
+    console.log('export')
+  }
+  // 点击页码
+  handleCurrentChange2(page: number) {
+    this.infoformItems.page = page
+    this.getBasicTable()
+  }
+  handleSizeChange(val: number) {
+    this.infoformItems.rows = val
+    this.infoformItems.page = 1
+    this.pageOption2.currentPage = 1
+    this.getBasicTable()
+  }
+}
+</script>
+
+<style module="keyAsset">
+.container {
+  width: 100%;
+  height: 100%;
+  text-align: left;
+}
+.topBox {
+  width: 100%;
+  height: 120px;
+  margin-bottom: 10px;
+  position: relative;
+}
+.timeBox {
+  position: absolute;
+  right: 18px;
+  top: 10px;
+  font-size: 16px;
+  z-index: 2;
+}
+.bottomBox {
+  width: 100%;
+  height: calc(100% - 130px);
+  display: flex;
+}
+.leftBox {
+  width: 340px;
+  height: 100%;
+  margin-right: 10px;
+}
+.tableForm {
+  position: relative;
+}
+.tableContent {
+  width: 100%;
+  height: calc(100% - 80px);
+}
+.tableBox {
+  height: calc(100% - 37px);
+}
+.rightBox {
+  width: calc(100% - 350px);
+  height: 100%;
+}
+.infoTitle {
+  width: 100%;
+  height: 30px;
+  display: flex;
+  line-height: 30px;
+  justify-content: space-between;
+}
+.titleLeft {
+  font-size: 18px;
+  color: #000000;
+  max-width: 300px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.titleRight {
+  font-size: 16px;
+  color: rgba(0, 0, 0, 0.5);
+}
+.titleRight span {
+  margin-right: 15px;
+}
+.titleRight span:last-child {
+  margin-right: 0;
+}
+.infoForm {
+  width: 100%;
+  height: 40px;
+  display: flex;
+  justify-content: space-between;
+}
+.buttonBox {
+  line-height: 40px;
+}
+.infoContent {
+  width: 100%;
+  height: calc(100% - 70px);
+}
+</style>
