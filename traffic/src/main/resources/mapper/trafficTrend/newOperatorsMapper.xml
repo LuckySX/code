@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.chanct.flowDirection.newOperatorsMapper">
+	
+
+  <!-- 查询运营商的种类 -->
+  <select id="selectOperator" resultType="string">
+  	SELECT DISTINCT operator FROM s_traffic_operators_proto_hour where 1=1 
+  	 <if test="operator != null and operator != '' ">
+					and operator = #{operator}  
+	</if> 
+	and date &gt;= DATE_FORMAT(#{startTime},'%Y-%m-%d %H:%i:%s')
+		        AND date &lt;= DATE_FORMAT(#{endTime},'%Y-%m-%d %H:%i:%s')
+  	 GROUP BY operator
+  </select>
+	<!-- 运营商协议流量统计图 -->
+	<select id="selectChart"  resultType="hashmap">
+		SELECT
+		category,
+		protocol as name,Round(sum(sumbytes)/1024/1024/1024,2) as value from
+		(select CASE
+		WHEN operator = '联通' THEN operator
+		WHEN operator = '移动' THEN operator
+		WHEN operator = '电信' THEN operator
+		WHEN operator = '铁通' THEN operator
+		ELSE '其它'
+		END as category,
+		protocol ,sumbytes from s_traffic_operators_protocols_hour
+		where protocol in (
+		select protocol from
+		(select protocol,sum(sumbytes) as value from s_traffic_operators_protocols_hour
+		WHERE date &gt;= DATE_FORMAT(#{startTime},'%Y-%m-%d %H:%i:%s')
+		AND date &lt;= DATE_FORMAT(#{endTime},'%Y-%m-%d %H:%i:%s')
+		group by protocol order by value desc limit 20) t)
+		<if test="operator != null and operator != '' ">
+			<choose>
+				<when test="operator == '其它'">
+					and operator !='电信' and operator !='联通' and operator !='移动' and operator !='铁通'
+				</when>
+				<otherwise>
+					and operator = #{operator}
+				</otherwise>
+			</choose>
+		</if>
+		and date &gt;= DATE_FORMAT(#{startTime},'%Y-%m-%d %H:%i:%s')
+		AND date &lt;= DATE_FORMAT(#{endTime},'%Y-%m-%d %H:%i:%s'))a
+		group by protocol,category order by category desc
+	</select>
+
+	<!-- 运营商流量变化 -->
+	<select id="selectLine"  resultType="hashmap">
+		SELECT  category, DATE_FORMAT(date ,'%Y-%m-%d %H') as name,Round(sum(sumbytes)/1024/1024/1024,2) as value
+		FROM
+		(select
+		CASE
+		WHEN operator = '联通' THEN 1
+		WHEN operator = '移动' THEN 0
+		WHEN operator = '电信' THEN 2
+		WHEN operator = '铁通' THEN 3
+		ELSE 4
+		END
+		as category, date ,sumbytes
+		from s_traffic_operators_protocols_hour
+		WHERE date &gt;= DATE_FORMAT(#{startTime},'%Y-%m-%d %H:%i:%s')
+		AND date &lt;= DATE_FORMAT(#{endTime},'%Y-%m-%d %H:%i:%s')
+		<if test="operator != null and operator != '' ">
+			<choose>
+				<when test="operator == '其它'">
+					and operator !='电信' and operator !='联通' and operator !='移动' and operator !='铁通'
+				</when>
+				<otherwise>
+					and operator = #{operator}
+				</otherwise>
+			</choose>
+		</if>
+		)a
+
+		group by name,category order by category ,name asc
+	</select>
+  
+</mapper>

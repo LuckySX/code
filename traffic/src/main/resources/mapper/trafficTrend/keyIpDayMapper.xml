@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.chanct.keyIpDayMapper">
+    <!-- 查询资产情况-->
+    <select id="getKeyAssetStatistic" parameterType="com.flow.traffic.entity.KeyAssetStatisticEntity"
+            resultType="com.flow.traffic.entity.KeyAssetStatisticEntity">
+        SELECT a.assetips,b.usedips,a.domains,a.webDownbytes,a.webUpbytes,a.sips FROM
+        (SELECT COUNT(DISTINCT ip) as assetips,
+        COUNT(DISTINCT domain) AS domains,
+        SUM(web_downbytes) AS webUpbytes ,
+        SUM(web_upbytes) AS webDownbytes,
+        SUM(sip_cnt) as sips,
+        '1' AS demp
+        FROM key_ip_day
+        WHERE date >= DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d'),INTERVAL -1 DAY) AND date &lt; DATE_FORMAT(NOW(),'%Y-%m-%d'))a
+        LEFT JOIN
+        (SELECT COUNT(DISTINCT ip) as usedips,
+        '1' AS demp
+        FROM key_ip_day
+        WHERE date >= DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d'),INTERVAL -1 DAY) AND date &lt; DATE_FORMAT(NOW(),'%Y-%m-%d')
+        AND ip_used=1)b
+        ON a.demp=b.demp
+    </select>
+    <!--资产 -->
+    <select id="getCompanyInfoTotal" parameterType="com.flow.traffic.entity.CompanyInfo" resultType="long">
+        select count(1) from (
+        SELECT DISTINCT ip_company_id AS companyId,
+        ip_name AS companyName,
+        ip_categories AS categories,
+        ip_county as county
+        FROM key_ip_day
+        <where>
+            <trim prefixOverrides="and" suffixOverrides="and">
+                <if test="companyName != null and companyName != '' ">
+                    and  ip_name like CONCAT('%',#{companyName},'%')
+                </if>
+                <if test="county !=null and county!= ''">
+                    and ip_county = #{county}
+                </if>
+                <if test="categories !=null and categories !=''" >
+                    AND ip_categories = #{categories}
+                </if>
+                <if test="ip !=null and ip !='' ">
+                    and INET_NTOA(ip) LIKE  CONCAT('%',#{ip},'%')
+                </if>
+                <if test="domain != null and domain !='' ">
+                    and domain  LIKE  CONCAT('%',#{domain},'%')
+                </if>
+            </trim>
+        </where>
+        )a
+    </select>
+    <select id="getCompanyInfoList" parameterType="com.flow.traffic.entity.CompanyInfo" resultType="com.flow.traffic.entity.CompanyInfo">
+        SELECT DISTINCT ip_company_id AS companyId,
+			ip_name AS companyName,
+			ip_categories AS categories,
+			ip_county as county
+        FROM key_ip_day
+        <where>
+            <trim prefixOverrides="and" suffixOverrides="and">
+                <if test="companyName != null and companyName != '' ">
+                    and  ip_name like CONCAT('%',#{companyName},'%')
+                </if>
+                <if test="county !=null and county!= ''">
+                    and ip_county = #{county}
+                </if>
+                <if test="categories !=null and categories !=''" >
+                    AND ip_categories = #{categories}
+                </if>
+                <if test="ip !=null and ip !='' ">
+                    and INET_NTOA(ip) LIKE  CONCAT('%',#{ip},'%')
+                </if>
+                <if test="domain != null and domain !='' ">
+                    and domain  LIKE  CONCAT('%',#{domain},'%')
+                </if>
+            </trim>
+        </where>
+        ORDER BY #{sort} #{order}
+        LIMIT #{start}, #{rows}
+    </select>
+    <!--查询区县 -->
+    <select id="getCounties" resultType="map">
+        SELECT DISTINCT ip_county AS dropName FROM key_ip_day ORDER BY ip_county ASC
+    </select>
+    <!--获取行业信息 -->
+    <select id="getCategories" resultType="map">
+        SELECT DISTINCT ip_categories AS dropName FROM key_ip_day ORDER BY ip_categories ASC
+    </select>
+    <!-- 查询资产详细信息-->
+    <select id="getCompanyInfoById" resultType="com.flow.traffic.entity.CompanyInfo" parameterType="com.flow.traffic.entity.KeyAssetTestingEntity">
+        SELECT ip_name as companyName, ip_county AS county,ip_categories as categories,COUNT(DISTINCT ip) AS ips,COUNT(DISTINCT domain) domains FROM key_ip_day
+        <where>
+            <trim prefixOverrides="and" suffixOverrides="and">
+                <if test="companyId !=null and companyId !=''">
+                    and ip_company_id = #{companyId}
+                </if>
+
+
+                <!--已放弃此设计
+                <if test="companyName !=null and companyName !=''">
+                    and ip_company_id =
+                    (SELECT DISTINCT ip_company_id FROM key_ip_day WHERE ip_name LIKE CONCAT('%',#{companyName},'%')  LIMIT 1)
+                </if>
+
+                <if test="domain !=null and domain !=''">
+                    and ip_company_id =
+                    (SELECT DISTINCT ip_company_id FROM key_ip_day WHERE `domain` LIKE CONCAT('%',#{domain},'%')  LIMIT 1)
+                </if>
+                <if test="ip !=null and ip !=''">
+                    and ip_company_id =
+                    (SELECT DISTINCT ip_company_id FROM key_ip_day WHERE INET_NTOA(ip) = #{ip}  LIMIT 1)
+                </if> -->
+            </trim>
+        </where>
+
+    </select>
+    
+    
+    <!-- 分页查询-->
+    <select id="selectTotal" parameterType="com.flow.traffic.entity.KeyAssetTestingEntity" resultType="long">
+        select count(ip) as total from (
+        SELECT  ip_company_id AS companyId,
+        INET_NTOA(ip) as ip,
+        segment,
+        domain,
+        INET_NTOA(global_ip) AS globalIp,
+        device_os AS deviceOs,
+        device_type AS deviceType,
+        operator,
+        SUM(web_links) AS webLinks,
+        SUM(web_downbytes) AS webDownbytes,
+        MAX(web_rate) AS webRate,
+        MAX(sip_cnt) AS sipCnt
+        FROM key_ip_day
+        <include refid="whereConditions" />
+        GROUP BY ip_company_id,ip,segment,domain,global_ip,domain_os,device_os,operator,device_type
+        )a
+    </select>
+    <select id="selectList" parameterType="com.flow.traffic.entity.KeyAssetTestingEntity" resultType="com.flow.traffic.entity.KeyAssetTestingEntity">
+        SELECT  ip_company_id AS companyId,
+        INET_NTOA(ip) as ip,
+        segment,
+        domain,
+        INET_NTOA(global_ip) AS globalIp,
+        device_os AS deviceOs,
+        device_type AS deviceType,
+        operator,
+        SUM(web_links) AS webLinks,
+        SUM(web_upbytes) AS webDownbytes,
+        MAX(web_rate) AS webRate,
+        MAX(sip_cnt) AS sipCnt
+        FROM key_ip_day
+        <include refid="whereConditions" />
+        GROUP BY ip_company_id,ip,segment,domain,global_ip,domain_os,device_os,operator,device_type
+        ORDER BY ${sort} ${order}
+        LIMIT ${start}, ${rows}
+    </select>
+    <sql id="whereConditions">
+        <where>
+            <trim prefixOverrides="and" suffixOverrides="and">
+                <if test="startTime !=null and startTime != ''">
+                    and date >= DATE_FORMAT(#{startTime},'%Y-%m-%d 00:00:00')
+                </if>
+                <if test="endTime !=null and endTime !=''">
+                    AND date &lt;= DATE_FORMAT(#{endTime},'%Y-%m-%d 23:59:59')
+                </if>
+                <if test="companyId !=null and companyId !=''">
+                    AND ip_company_id = #{companyId}
+                </if>
+                <if test="domain !=null and domain !=''">
+                    and ip_company_id =
+                    (SELECT DISTINCT ip_company_id FROM key_ip_day WHERE `domain` LIKE CONCAT('%',#{domain},'%')  LIMIT 1)
+                </if>
+                <if test="companyName !=null and companyName !=''">
+                    and ip_company_id =
+                    (SELECT DISTINCT ip_company_id FROM key_ip_day WHERE ip_name LIKE CONCAT('%',#{companyName},'%')  LIMIT 1)
+                </if>
+                <if test="ip !=null and ip !=''">
+                    and ip_company_id =
+                    (SELECT DISTINCT ip_company_id FROM key_ip_day WHERE INET_NTOA(ip) = #{ip}  LIMIT 1)
+                </if>
+            </trim>
+        </where>
+    </sql>
+
+</mapper>

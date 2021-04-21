@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.chanct.trafficOverviewMapper">
+
+    <select id="selectOperator" parameterType="Integer"
+            resultType="com.flow.traffic.entity.OPEntity">
+            SELECT operator AS name,
+            IFNULL(SUM(sumbytes),0) as value,
+            CASE
+            WHEN SUM(sumbytes) &lt; 1024 THEN CONCAT(SUM(sumbytes), 'B')
+            WHEN SUM(sumbytes) &lt; 1024 * 1024 THEN CONCAT(round(SUM(sumbytes) / 1024,2), 'KB')
+            WHEN SUM(sumbytes) &lt; 1024 * 1024 * 1024 THEN CONCAT( round(SUM(sumbytes) / 1024 / 1024,2), 'MB' )
+            WHEN SUM(sumbytes) &lt; 1024 * 1024 * 1024 * 1024 THEN CONCAT(round(SUM(sumbytes) / 1024 / 1024 / 1024,2), 'G')
+            ELSE CONCAT( round(SUM(sumbytes) / 1024 / 1024 / 1024 / 1024,2), 'T' )
+            END AS info
+            FROM s_traffic_operators_protocols_hour
+            WHERE date>DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00')
+            AND area=#{_paremeter}
+            GROUP BY operator
+            ORDER BY value DESC
+    </select>
+    <select id="selectProtocol" parameterType="Integer"
+            resultType="com.flow.traffic.entity.OPEntity">
+            SELECT protocol AS name,
+            IFNULL(SUM(sumbytes),0) as value,
+            CASE
+            WHEN SUM(sumbytes) &lt; 1024 THEN CONCAT(SUM(sumbytes), 'B')
+            WHEN SUM(sumbytes) &lt; 1024 * 1024 THEN CONCAT(round(SUM(sumbytes) / 1024,2), 'KB')
+            WHEN SUM(sumbytes) &lt; 1024 * 1024 * 1024 THEN CONCAT( round(SUM(sumbytes) / 1024 / 1024,2), 'MB' )
+            WHEN SUM(sumbytes) &lt; 1024 * 1024 * 1024 * 1024 THEN CONCAT(round(SUM(sumbytes) / 1024 / 1024 / 1024,2), 'G')
+            ELSE CONCAT( round(SUM(sumbytes) / 1024 / 1024 / 1024 / 1024,2), 'T' )
+            END AS info
+            FROM s_traffic_operators_protocols_hour
+            WHERE date>DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00')
+            AND area=#{_paremeter}
+            GROUP BY protocol
+            ORDER BY value DESC LIMIT 5
+    </select>
+</mapper>

@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.chanct.flowNewAreaMapper">
+	<resultMap type="com.flow.traffic.entity.AreaStatisticsGraph"
+		id="TareaIp">
+		<result column="area" property="category" />
+		<result column="date" property="name" />
+		<result column="ips" property="value" />
+	</resultMap>
+	<resultMap type="com.flow.traffic.entity.AreaStatisticsGraph"
+		id="TareaWeb">
+		<result column="area" property="category" />
+		<result column="date" property="name" />
+		<result column="webs" property="value" />
+	</resultMap>
+	<resultMap type="com.flow.traffic.entity.AreaStatisticsTableWeb"
+		id="BareaWeb">
+		<result column="area" property="area" />
+		<result column="webs" property="webnum" />
+		<result column="web_upbytes" property="webup" />
+		<result column="web_downbytes" property="webdown" />
+		<result column="web_links" property="weblink" />
+	</resultMap>
+	<resultMap type="com.flow.traffic.entity.AreaStatisticsTableIp"
+		id="BareaIp">
+		<result column="area" property="area" />
+		<result column="ips" property="usernum" />
+		<result column="ip_upbytes" property="hostup" />
+		<result column="ip_downbytes" property="hostdown" />
+		<result column="ip_links" property="hostlink" />
+	</resultMap>
+
+	<select id="selectAreaIp" parameterType="com.flow.traffic.entity.QueryCondition"
+		resultMap="TareaIp">
+		SELECT date,SUM(ips) AS ips,area
+		FROM (
+		  SELECT area,ROUND((ip_upbytes+ip_downbytes)/1024/1024/1024,2) AS ips, DATE_FORMAT(DATE, '%Y-%m-%d %H') AS date
+		  FROM s_traffic_areas_hour
+		  WHERE DATE &gt;= DATE_FORMAT(#{startDate},'%Y-%m-%d %H:%i:%s')
+		        AND DATE &lt;= DATE_FORMAT(#{endDate},'%Y-%m-%d %H:%i:%s') 
+		        AND AREA IN
+		<foreach item="Item" collection="citysArr" open="(" separator="," close=")" index="index">
+			#{Item}
+		</foreach>
+		  <if test="area != null and area != ''">		
+				AND	area = #{area}
+		  </if>
+		)w
+		GROUP BY date,area
+	</select>
+
+	<select id="selectAreaWeb" parameterType="com.flow.traffic.entity.QueryCondition"
+		resultMap="TareaWeb">
+		SELECT date,area,SUM(webs) AS webs
+		FROM (
+		  SELECT area, ROUND((web_upbytes+web_downbytes)/1024/1024/1024,2) as webs, DATE_FORMAT(DATE, '%Y-%m-%d %H') AS date
+		  FROM s_traffic_areas_hour
+		  WHERE DATE &gt;= DATE_FORMAT(#{startDate},'%Y-%m-%d %H:%i:%s')
+		        AND DATE &lt;= DATE_FORMAT(#{endDate},'%Y-%m-%d %H:%i:%s') 
+		        AND AREA IN
+		        <foreach item="Item" collection="citysArr" open="(" separator="," close=")" index="index">
+			                 #{Item}
+		       </foreach>
+		  <if test="area != null and area != ''">		
+				AND	area = #{area}
+		  </if>
+		)w
+		GROUP BY date,area
+	</select>
+	<select id="selectAreaTableForIp" parameterType="com.flow.traffic.entity.QueryCondition"
+		resultMap="BareaIp">
+		SELECT area,SUM(ips) AS ips,
+		       SUM(ip_upbytes) AS ip_upbytes,
+		       SUM(ip_downbytes) AS ip_downbytes,SUM(ip_links) AS ip_links
+		FROM s_traffic_areas_hour
+		WHERE DATE &gt;= DATE_FORMAT(#{startDate},'%Y-%m-%d %H:%i:%s')
+		      AND DATE &lt;= DATE_FORMAT(#{endDate},'%Y-%m-%d %H:%i:%s') 
+		      AND AREA IN
+		      <foreach item="Item" collection="citysArr" open="(" separator="," close=")" index="index">
+			                 #{Item}
+		       </foreach>
+		      
+		GROUP BY area
+		ORDER BY ${sort} ${order}
+	</select>
+	
+	<select id="selectAreaTableForWeb" parameterType="com.flow.traffic.entity.QueryCondition"
+		resultMap="BareaWeb">
+		SELECT area,SUM(webs) AS webs,
+		       SUM(web_upbytes) AS web_upbytes,
+		       SUM(web_downbytes) AS web_downbytes,SUM(web_links) AS web_links
+		FROM s_traffic_areas_hour
+		WHERE DATE &gt;= DATE_FORMAT(#{startDate},'%Y-%m-%d %H:%i:%s')
+		      AND DATE &lt;= DATE_FORMAT(#{endDate},'%Y-%m-%d %H:%i:%s') 
+		      AND AREA IN
+		      <foreach item="Item" collection="citysArr" open="(" separator="," close=")" index="index">
+			                 #{Item}
+		       </foreach>
+		      <if test="area != null and area != ''">		
+				AND	area = #{area}
+		      </if>
+		GROUP BY area
+		ORDER BY ${sort} ${order}
+	</select>
+	
+	<select id="selectAreaTableForWebnum" parameterType="com.flow.traffic.entity.QueryCondition"
+        resultType="long"> 
+		SELECT count(area)
+		FROM s_traffic_areas_hour
+		WHERE DATE &gt;= DATE_FORMAT(#{startDate},'%Y-%m-%d %H:%i:%s')
+		      AND DATE &lt;= DATE_FORMAT(#{endDate},'%Y-%m-%d %H:%i:%s') 
+		      AND AREA IN
+		      <foreach item="Item" collection="citysArr" open="(" separator="," close=")" index="index">
+			                 #{Item}
+		       </foreach>
+		      <if test="area != null and area != ''">		
+				AND	area = #{area}
+		      </if>
+	</select>
+	
+	<!-- 查询活跃网站数 -->
+	<select id="selectWeb" parameterType="com.flow.traffic.entity.QueryCondition"
+		resultMap="TareaWeb">
+		  SELECT area, webs as webs, DATE_FORMAT(DATE, '%Y-%m-%d %H') AS date
+		  FROM s_traffic_areas_hour
+		  WHERE DATE &gt;= DATE_FORMAT(#{startDate},'%Y-%m-%d %H:%i:%s')
+		        AND DATE &lt;= DATE_FORMAT(#{endDate},'%Y-%m-%d %H:%i:%s')	
+		        AND AREA IN
+		        <foreach item="Item" collection="citysArr" open="(" separator="," close=")" index="index">
+			                 #{Item}
+		       </foreach>
+		  <if test="area != null and area != ''">		
+				AND	area = #{area}
+		  </if>
+	</select>
+	
+	<!-- 查询活跃网民数 -->
+	<select id="selectIp" parameterType="com.flow.traffic.entity.QueryCondition"
+		resultMap="TareaIp">
+		  SELECT area, ips, DATE_FORMAT(DATE, '%Y-%m-%d %H') AS date
+		  FROM s_traffic_areas_hour
+		  WHERE DATE &gt;= DATE_FORMAT(#{startDate},'%Y-%m-%d %H:%i:%s')
+		        AND DATE &lt;= DATE_FORMAT(#{endDate},'%Y-%m-%d %H:%i:%s') 
+		        AND AREA IN
+		        <foreach item="Item" collection="citysArr" open="(" separator="," close=")" index="index">
+			                 #{Item}
+		       </foreach>
+		  <if test="area != null and area != ''">		
+				AND	area = #{area}
+		  </if>
+	</select>
+
+
+	<select id="selectMaxTime" parameterType="com.flow.traffic.entity.QueryCondition"
+			resultType="string">
+		SELECT cast(max(date) as char) as endtime
+		FROM s_traffic_areas_hour
+		WHERE DATE &gt;= DATE_FORMAT(#{startDate},'%Y-%m-%d %H:%i:%s')
+		AND DATE &lt;= DATE_FORMAT(#{endDate},'%Y-%m-%d %H:%i:%s')
+		AND AREA IN
+		<foreach item="Item" collection="citysArr" open="(" separator="," close=")" index="index">
+			#{Item}
+		</foreach>
+		<if test="area != null and area != ''">
+			AND	area = #{area}
+		</if>
+	</select>
+	
+</mapper>

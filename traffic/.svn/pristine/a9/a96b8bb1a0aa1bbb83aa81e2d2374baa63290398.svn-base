@@ -1,8 +1,0 @@
-module.exports = {
-  eslintIntegration: true,
-  htmlWhitespaceSensitivity: 'ignore',
-  endOfLine: 'auto',
-  printWidth: 100,
-  singleQuote: true,
-  semi: false
-}

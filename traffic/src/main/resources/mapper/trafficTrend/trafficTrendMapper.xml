@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.chanct.trafficTrendMapper">
+    <sql id="selcetWhere">
+        <where>
+            <trim prefix="and" prefixOverrides="and">
+            <if test="name !=null and name!=''">
+                <choose>
+                    <when test="search==1">
+                        and (a.domain like concat('%',#{name},'%')
+                        or a.site_name like concat('%',#{name},'%'))
+                    </when>
+                    <otherwise>
+                        and (a.domain =#{domain}
+                        and a.site_name =#{name})
+                    </otherwise>
+                </choose>
+            </if>
+<!--                <if test="name !=null and name!=''">
+                    and (a.domain like concat('%',#{name},'%')
+                    or a.site_name like concat('%',#{name},'%'))
+                </if>-->
+<!--                <choose>
+                    <when test="time !=null and time!='' and time==30">
+                        and a.date>=DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00'),INTERVAL -30 DAY)
+                        <![CDATA[AND a.date<DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00'),INTERVAL 1 DAY)]]>
+                    </when>
+                    <when test="time !=null and time!='' and time==90">
+                        and a.date>=DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00'),INTERVAL -90 DAY)
+                        <![CDATA[AND a.date<DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00'),INTERVAL 1 DAY)]]>
+                    </when>
+                    <otherwise>
+                        and a.date>=DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00'),INTERVAL -7 DAY)
+                        <![CDATA[AND a.date<DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00'),INTERVAL 1 DAY)]]>
+                    </otherwise>
+                </choose>-->
+                and a.date>=DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00'),INTERVAL -91 DAY)
+                <![CDATA[AND a.date<DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00'),INTERVAL 0 DAY)]]>
+            </trim>
+        </where>
+    </sql>
+    <sql id="selcetWhereThred">
+        <where>
+            <trim prefixOverrides="and">
+                <if test="enName !=null and enName!=''">
+                    and domain=#{enName}
+                </if>
+                <if test="cnName !=null and cnName!=''">
+                    and site_name=#{cnName}
+                </if>
+                <choose>
+                    <when test="time !=null and time!='' and time==30">
+                        and date>=DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00'),INTERVAL -31 DAY)
+                        <![CDATA[AND date<DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00'),INTERVAL 0 DAY)]]>
+                    </when>
+                    <when test="time !=null and time!='' and time==90">
+                        and date>=DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00'),INTERVAL -91 DAY)
+                        <![CDATA[AND date<DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00'),INTERVAL 0 DAY)]]>
+                    </when>
+                    <otherwise>
+                        and date>=DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00'),INTERVAL -8 DAY)
+                        <![CDATA[AND date<DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00'),INTERVAL 0 DAY)]]>
+                    </otherwise>
+                </choose>
+            </trim>
+        </where>
+    </sql>
+
+    <sql id="selectType">
+        <where>
+            <trim  prefixOverrides="and">
+                <if test="startTime !='' and startTime != null">
+                    and DATE_FORMAT(date,'%Y-%m-%d')  &gt;= str_to_date(#{startTime},'%Y-%m-%d')
+                </if>
+                <if test="endTime !='' and endTime != null">
+                    and DATE_FORMAT(date,'%Y-%m-%d')  &lt;= str_to_date(#{endTime},'%Y-%m-%d')
+                </if>
+                <if test="startTime ==''  and endTime =='' ">
+                    and date>=DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00'),INTERVAL -91 DAY)
+                    <![CDATA[AND date<=DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00'),INTERVAL 0 DAY)]]>
+                </if>
+            </trim>
+        </where>
+    </sql>
+
+<!--    <sql id="selcetWhereThred">
+        <where>
+            <trim prefixOverrides="and">
+                <if test="item.enName !=null and item.enName!=''">
+                    and domain=#{item.enName}
+                </if>
+                <if test="item.cnName !=null and item.cnName!=''">
+                    and site_name=#{item.cnName}
+                </if>
+                <choose>
+                    <when test="item.time !=null and item.time!='' and item.time==30">
+                        and date>=DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00'),INTERVAL -30 DAY)
+                        <![CDATA[AND date<DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00'),INTERVAL 1 DAY)]]>
+                    </when>
+                    <when test="item.time !=null and item.time!='' and item.time==90">
+                        and date>=DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00'),INTERVAL -90 DAY)
+                        <![CDATA[AND date<DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00'),INTERVAL 1 DAY)]]>
+                    </when>
+                    <otherwise>
+                        and date>=DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00'),INTERVAL -7 DAY)
+                        <![CDATA[AND date<DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00'),INTERVAL 1 DAY)]]>
+                    </otherwise>
+                </choose>
+            </trim>
+        </where>
+    </sql>-->
+    
+<!--    <sql id="timeTable">
+        <choose>
+            <when test="item.time !=null and item.time!=' ' and item.time==30">
+                select @num:=@num+1,date_format(adddate(DATE_ADD(NOW(),INTERVAL -30 DAY), INTERVAL @num DAY)-1,'%Y-%m-%d') as create_time
+                from t_time_table,(select @num:=0) t
+                where
+                <![CDATA[adddate(DATE_ADD(NOW(),INTERVAL -30 DAY), INTERVAL @num DAY) < date_format(DATE_ADD(NOW(),INTERVAL 0 DAY),'%Y-%m-%d')]]>
+                order by create_time
+            </when>
+            <when test="item.time !=null and item.time!=' ' and item.time==90">
+                select @num:=@num+1,date_format(adddate(DATE_ADD(NOW(),INTERVAL -90 DAY), INTERVAL @num DAY)-1,'%Y-%m-%d') as create_time
+                from t_time_table,(select @num:=0) t
+                where
+                <![CDATA[adddate(DATE_ADD(NOW(),INTERVAL -90 DAY), INTERVAL @num DAY) < date_format(DATE_ADD(NOW(),INTERVAL 0 DAY),'%Y-%m-%d')]]>
+                order by create_time
+            </when>
+            <otherwise>
+                select @num:=@num+1,date_format(adddate(DATE_ADD(NOW(),INTERVAL -7 DAY), INTERVAL @num DAY)-1,'%Y-%m-%d') as create_time
+                from t_time_table,(select @num:=0) t
+                where
+                <![CDATA[adddate(DATE_ADD(NOW(),INTERVAL -7 DAY), INTERVAL @num DAY) < date_format(DATE_ADD(NOW(),INTERVAL 0 DAY),'%Y-%m-%d')]]>
+                order by create_time
+            </otherwise>
+        </choose>
+
+    </sql>-->
+    <sql id="timeTable">
+        <choose>
+            <when test="time !=null and time!=' ' and time==30">
+                select @num:=@num+1,date_format(adddate(DATE_ADD(NOW(),INTERVAL -31 DAY), INTERVAL @num DAY)-1,'%Y-%m-%d') as create_time
+                from t_time_table,(select @num:=0) t
+                where
+                <![CDATA[adddate(DATE_ADD(NOW(),INTERVAL -31 DAY), INTERVAL @num DAY) < date_format(DATE_ADD(NOW(),INTERVAL -1 DAY),'%Y-%m-%d')]]>
+                order by create_time
+            </when>
+            <when test="time !=null and time!=' ' and time==90">
+                select @num:=@num+1,date_format(adddate(DATE_ADD(NOW(),INTERVAL -91 DAY), INTERVAL @num DAY)-1,'%Y-%m-%d') as create_time
+                from t_time_table,(select @num:=0) t
+                where
+                <![CDATA[adddate(DATE_ADD(NOW(),INTERVAL -91 DAY), INTERVAL @num DAY) < date_format(DATE_ADD(NOW(),INTERVAL -1 DAY),'%Y-%m-%d')]]>
+                order by create_time
+            </when>
+            <otherwise>
+                select @num:=@num+1,date_format(adddate(DATE_ADD(NOW(),INTERVAL -8 DAY), INTERVAL @num DAY)-1,'%Y-%m-%d') as create_time
+                from t_time_table,(select @num:=0) t
+                where
+                <![CDATA[adddate(DATE_ADD(NOW(),INTERVAL -8 DAY), INTERVAL @num DAY) < date_format(DATE_ADD(NOW(),INTERVAL -1 DAY),'%Y-%m-%d')]]>
+                order by create_time
+            </otherwise>
+        </choose>
+
+    </sql>
+
+    <select id="selectTrafficBasics" parameterType="com.flow.traffic.entity.TrafficTrendEntity"
+            resultType="com.flow.traffic.entity.TrafficTrendEntity">
+        SELECT (@num:=@num+1) as orderNum,t5.* FROM (
+        SELECT #{time} as time,
+        IFNULL(t2.vv,0) as vv,
+        IFNULL(t2.uu,0) as uu,
+        IFNULL(t1.sip_cnt,0) AS visiteNum,
+        CASE
+        WHEN IFNULL(t1.sumbytes,0) &lt; 1024 THEN  (IFNULL(t1.sumbytes,0))
+        WHEN IFNULL(t1.sumbytes,0) &lt; 1024 * 1024 THEN ROUND((IFNULL(t1.sumbytes,0)/1024),2)
+        WHEN IFNULL(t1.sumbytes,0) &lt; 1024 * 1024 * 1024 THEN  ROUND((IFNULL(t1.sumbytes,0)/1024/1024),2)
+        WHEN IFNULL(t1.sumbytes,0) &lt; 1024 * 1024 * 1024 * 1024 THEN  ROUND((IFNULL(t1.sumbytes,0)/1024/1024/1024),2)
+        ELSE  ROUND((IFNULL(t1.sumbytes,0)/1024/1024/1024/1024),2)
+        END AS trendNum,
+        CASE
+        WHEN IFNULL(t1.sumbytes,0) &lt; 1024 THEN  'B'
+        WHEN IFNULL(t1.sumbytes,0) &lt; 1024 * 1024 THEN 'KB'
+        WHEN IFNULL(t1.sumbytes,0) &lt; 1024 * 1024 * 1024 THEN  'MB'
+        WHEN IFNULL(t1.sumbytes,0) &lt; 1024 * 1024 * 1024 * 1024 THEN  'G'
+        ELSE  'T' end as unit,
+        a.site_name AS cnName,
+        a.domain AS enName,
+        IFNULL((IFNULL(t1.sip_cnt,0)-
+        (SELECT sip_cnt from website_traffic_day t
+        WHERE
+        t.site_name=a.site_name
+        AND t.domain =a.domain
+        AND t.date>=DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00'),INTERVAL -2 DAY)
+        AND <![CDATA[t.date<DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00'),INTERVAL -1 DAY)  LIMIT 1) ]]>),0) AS addNum
+        from website_traffic_day a
+        LEFT JOIN
+        (SELECT domain,sip_cnt,sumbytes,site_name FROM website_traffic_day
+        WHERE date>=DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00'),INTERVAL -1 DAY)
+         <![CDATA[and date < DATE_FORMAT(NOW(),'%Y-%m-%d 00:00:00') ]]>) t1
+        on a.domain=t1.domain and a.site_name=t1.site_name
+        LEFT JOIN
+        (SELECT domain,sum(sip_cnt) as uu,sum(sumbytes) as vv,site_name FROM website_traffic_day
+        <include refid="selectType"/>
+        GROUP BY domain,site_name ) t2
+        on a.domain=t2.domain and a.site_name=t2.site_name
+        <include refid="selcetWhere"/>
+        GROUP BY a.domain,a.site_name
+        order by
+        <choose>
+            <when test="type==1">
+                uu DESC
+            </when>
+            <when test="type==2">
+                vv DESC
+            </when>
+            <otherwise>
+                visiteNum  DESC
+            </otherwise>
+        </choose>
+        )t5,(select @num:=0)t4
+
+    </select>
+
+
+    <select id="selectTrafficBasicsTotal" parameterType="com.flow.traffic.entity.TrafficTrendEntity"
+            resultType="long">
+        SELECT count(*) FROM(
+        SELECT site_name
+        from website_traffic_day a
+        <include refid="selcetWhere"/>
+        GROUP BY a.domain,a.site_name
+        ) t
+    </select>
+
+<!--    <select id="selectTrafficTrend" parameterType="list"
+            resultType="com.flow.traffic.entity.TrafficTrendEntity">
+        <foreach collection="list" item="item" index="index" separator="union all">
+            SELECT GROUP_CONCAT(IFNULL(t.sip_cnt,0) ORDER BY create_time ASC) AS personStr,
+            GROUP_CONCAT(IFNULL(t.sumbytes,0) ORDER BY create_time ASC) AS flowStr,
+            t.site_name AS cnName,
+            t.domain AS enName,
+            GROUP_CONCAT(DATE_FORMAT(d.create_time,'%m-%d') ORDER BY create_time ASC) AS dataStr
+            FROM
+            (<include refid="timeTable"/> )d
+            LEFT JOIN
+            (
+                    SELECT sip_cnt,ROUND((sumbytes/1024/1024),2) as sumbytes
+                    ,site_name,domain,
+                    DATE_FORMAT(date,'%m-%d') as date
+                    FROM
+                    website_traffic_day
+                  <include refid="selcetWhereThred"/>
+                ORDER BY date desc
+                )t
+                ON DATE_FORMAT(d.create_time,'%m-%d')=t.date
+        </foreach>
+    </select>-->
+
+    <select id="selectTrafficTrend" parameterType="com.flow.traffic.entity.TrafficTrendEntity"
+            resultType="com.flow.traffic.entity.TrafficTrendEntity">
+            SELECT GROUP_CONCAT(IFNULL(t.sip_cnt,0) ORDER BY create_time ASC) AS personStr,
+            GROUP_CONCAT(IFNULL(t.sumbytes,0) ORDER BY create_time ASC) AS flowStr,
+            t.site_name AS cnName,
+            t.domain AS enName,
+            GROUP_CONCAT(DATE_FORMAT(d.create_time,'%m-%d') ORDER BY create_time ASC) AS dateStr
+            FROM
+            (<include refid="timeTable"/> )d
+            LEFT JOIN
+            (
+            SELECT sip_cnt,ROUND((sumbytes/1024),2) as sumbytes
+            ,site_name,domain,
+            DATE_FORMAT(date,'%m-%d') as date
+            FROM
+            website_traffic_day
+            <include refid="selcetWhereThred"/>
+            GROUP BY DATE_FORMAT(date,'%y-%m-%d')
+            ORDER BY date desc
+            )t
+            ON DATE_FORMAT(d.create_time,'%m-%d')=t.date
+    </select>
+
+</mapper>

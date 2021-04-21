@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.chanct.flowDirection.userMapper">
+	<resultMap type="com.flow.traffic.entity.UserFlowT"
+		id="TuserFlowTu">
+		<result column="ip" property="name" />
+		<result column="sumbytes" property="value_1" />
+		<result column="links" property="value_2" />
+	</resultMap>
+	<resultMap type="com.flow.traffic.entity.UserFlowB"
+		id="TuserFlowB">
+		<result column="ip" property="ip" />
+		<result column="filing" property="filing" />
+		<result column="upbytes" property="upBytes" />
+		<result column="downbytes" property="downBytes" />
+		<result column="links" property="links" />
+		<result column="sumbytes" property="sumBytes" />
+	</resultMap>
+
+	<resultMap type="com.flow.traffic.entity.UserFlowPopup"
+		id="UserFlowPopupUp">
+		<result column="date" property="name" />
+		<result column="upbytes" property="value" />
+	</resultMap>
+
+	<resultMap type="com.flow.traffic.entity.UserFlowPopup"
+		id="UserFlowPopupDown">
+		<result column="date" property="name" />
+		<result column="downbytes" property="value" />
+	</resultMap>
+
+	<resultMap type="com.flow.traffic.entity.UserFlowPopup"
+		id="UserFlowPopupLinks">
+		<result column="date" property="name" />
+		<result column="links" property="value" />
+	</resultMap>
+
+
+	<resultMap type="com.flow.traffic.entity.UserFlowProtocol"
+		id="UserFlowProtocol">
+		<result column="protocol" property="protocol" />
+		<result column="date" property="date" />
+		<result column="upbytes" property="upbytes" />
+		<result column="downbytes" property="downbytes" />
+		<result column="links" property="links" />
+		<result column="sumbytes" property="sumbytes" />
+	</resultMap>
+
+	<resultMap type="com.flow.traffic.entity.DataNum" id="DataNum">
+		<result column="filing" property="unIp" />
+		<result column="ip" property="acIp" />
+	</resultMap>
+	<sql id="whereCondation">
+		WHERE date &gt;= DATE_FORMAT(#{startDate},'%Y-%m-%d %H:%i:%s')
+		AND date
+		&lt;= DATE_FORMAT(#{endDate},'%Y-%m-%d %H:%i:%s')
+		<if test="ip != null and ip != ''">
+			AND inet_ntoa(ip) = #{ip}
+		</if>
+	</sql>
+
+	<select id="selectUserT" parameterType="com.flow.traffic.entity.QueryCondition"
+		resultMap="TuserFlowTu">
+		SELECT inet_ntoa(ip) as ip,SUM(upbytes+downbytes)/(1024*1024*1024) AS sumbytes ,
+		ROUND(SUM(links)/10000,2) AS links
+		FROM s_traffic_ips_hour
+		<include refid="whereCondation" />
+		GROUP BY ip
+		ORDER BY sumbytes DESC
+		LIMIT 20
+	</select>
+	<select id="selectUserTZ" parameterType="com.flow.traffic.entity.QueryCondition"
+		resultMap="TuserFlowTu">
+		SELECT inet_ntoa(ip) as ip,SUM(upbytes+downbytes)/(1024*1024*1024) AS sumbytes ,
+		ROUND(SUM(links)/10000,2) AS links
+		FROM s_traffic_ips_hour
+		<include refid="whereCondation" />
+		GROUP BY ip
+		ORDER BY links DESC
+		LIMIT 20
+	</select>
+	<select id="selectUserB" resultMap="TuserFlowB">
+		SELECT a.*,CAST((@i:=@i+1) as SIGNED) as orderNum FROM (
+			SELECT inet_ntoa(ip) as ip,IF(filing=0,"否","是") AS filing,sum(upbytes) as upbytes ,
+            sum(downbytes) as downbytes ,sum(links) as links,SUM(upbytes+downbytes) AS sumbytes
+			FROM s_traffic_ips_hour
+			<include refid="whereCondation" />
+			GROUP BY ip
+			ORDER BY ${sort} ${order}
+		) a ,(select @i:=0) as it
+	</select>
+	<select id="selectUserBZ"  resultMap="TuserFlowB">
+		SELECT a.*,CAST((@i:=@i+1) as SIGNED) as orderNum FROM (
+			SELECT inet_ntoa(ip) as ip,IF(filing=0,"否","是") AS filing,sum(upbytes) as upbytes ,
+        sum(downbytes) as downbytes ,sum(links) as links,SUM(upbytes+downbytes) AS sumbytes
+			FROM
+		s_traffic_ips_hour
+			<include refid="whereCondation" />
+			GROUP BY ip
+			ORDER BY ${sort} ${order}
+		) a ,(select @i:=0) as it
+	</select>
+	<select id="selectUserDataNum" parameterType="com.flow.traffic.entity.QueryCondition"
+		resultMap="DataNum">
+		SELECT COUNT(ip) AS ip,sum(IF(filing>0,1,0)) AS filing FROM (
+		SELECT ip,SUM(filing=0) AS filing
+		FROM
+		s_traffic_ips_hour
+		<include refid="whereCondation" />
+		GROUP BY ip
+		) d
+
+
+	</select>
+<!-- 	select ip,count(ip)-sum(filing) from s_traffic_ips_day where date>='2016-08-15' and date<='2016-09-11' group by ip
+ -->	
+
+	<select id="selectUserBnum"  resultType="long">
+		SELECT COUNT(*) FROM (
+		SELECT COUNT(*) FROM `s_traffic_ips_hour`
+		<include refid="whereCondation" />
+		GROUP BY ip
+		)k
+	</select>
+
+	<select id="selectUserPopupUp" parameterType="com.flow.traffic.entity.QueryCondition"
+		resultMap="UserFlowPopupUp">
+		SELECT SUM(upbytes/(1024*1024*1024)) AS upbytes, DATE
+		FROM (
+		SELECT
+		upbytes,DATE_FORMAT(DATE, '%Y-%m-%d %H') AS DATE
+		FROM
+		`s_traffic_ips_hour`
+		<include refid="whereCondation" />
+		) w
+		GROUP BY DATE
+	</select>
+
+	<select id="selectUserPopupDown" parameterType="com.flow.traffic.entity.QueryCondition"
+		resultMap="UserFlowPopupDown">
+		SELECT SUM(downbytes/(1024*1024*1024)) AS downbytes, DATE
+		FROM (
+		SELECT
+		downbytes,DATE_FORMAT(DATE, '%Y-%m-%d %H') AS DATE
+		FROM
+		`s_traffic_ips_hour`
+		<include refid="whereCondation" />
+		) w
+		GROUP BY DATE
+	</select>
+
+	<select id="selectUserPopupLinks" parameterType="com.flow.traffic.entity.QueryCondition"
+		resultMap="UserFlowPopupLinks">
+		SELECT SUM(w.links)AS links, DATE
+		FROM (
+		SELECT links,DATE_FORMAT(DATE, '%Y-%m-%d %H') AS DATE
+		FROM `s_traffic_ips_hour`
+		<include refid="whereCondation" />
+		) w
+		GROUP BY DATE
+	</select>
+
+
+	<select id="selectUserFlowProtocol"  resultMap="UserFlowProtocol">
+		SELECT a.*,CAST((@i:=@i+1) as SIGNED) as orderNum FROM (
+		SELECT protocol,DATE_FORMAT(DATE, '%Y-%m-%d %H')
+		AS DATE ,SUM(upbytes) AS
+		upbytes,SUM(downbytes) AS downbytes,
+		SUM(links) AS links,
+		SUM(upbytes+downbytes) AS sumbytes
+		FROM
+		`s_traffic_ips_hour`
+		<include refid="whereCondation" />
+		GROUP BY protocol
+		ORDER BY ${sort} ${order}
+		) a ,(select @i:=0) as it
+	</select>
+	<!-- 获取第二个弹出框的查询结果条数 -->
+	<select id="selectUserFlowProtocolnum"  resultType="long">
+		SELECT COUNT(*) FROM (
+		SELECT COUNT(protocol)
+		FROM `s_traffic_ips_hour`
+		<include refid="whereCondation" />
+		GROUP BY protocol
+		) k
+	</select>
+
+
+
+</mapper>

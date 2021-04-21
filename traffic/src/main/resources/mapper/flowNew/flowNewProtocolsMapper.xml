@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.chanct.flowNewProtocolsMapper">
+
+  
+  <!-- 流量分布图 -->
+  <select id="selectFlow" parameterType="com.flow.traffic.entity.ProtocolsDay" resultType="hashmap">
+  	select protocol_class as name,Round(SUM(upbytes+downbytes)/1024/1024/1024,2) as category,Round(SUM(upbytes+downbytes)/1024/1024/1024,2) as value from s_traffic_protocols_hour
+
+  	
+  	WHERE date &gt;= DATE_FORMAT(#{startTime},'%Y-%m-%d %H:%i:%s')
+		        AND date &lt;= DATE_FORMAT(#{endTime},'%Y-%m-%d %H:%i:%s')
+  	
+   	group by protocol_class ORDER BY category DESC
+   			LIMIT 10
+  </select>
+  
+  <!-- 协议流量TOP图 -->
+  <select id="selectChart2" parameterType="com.flow.traffic.entity.ProtocolsHour" resultType="hashmap">
+  	select protocol as name,Round(sum(links)/10000,2) as ljs,Round(sum(upbytes+downbytes)/1024/1024/1024,2) as ll from s_traffic_protocols_hour
+
+  	WHERE date &gt;= DATE_FORMAT(#{startTime},'%Y-%m-%d %H:%i:%s')
+		        AND date &lt;= DATE_FORMAT(#{endTime},'%Y-%m-%d %H:%i:%s')
+  	and protocol_class=#{protocolgroup}
+    group by protocol order by ll desc limit 10
+  </select>
+  
+  <!-- 连接数分布图 -->
+  <select id="selectChart3" parameterType="com.flow.traffic.entity.ProtocolsHour" resultType="hashmap">
+  	select protocol as name,Round(sum(links)/10000,2) as ljs,Round(sum(upbytes+downbytes)/1024/1024/1024,2) as ll from s_traffic_protocols_hour
+
+  	WHERE date &gt;= DATE_FORMAT(#{startTime},'%Y-%m-%d %H:%i:%s')
+		        AND date &lt;= DATE_FORMAT(#{endTime},'%Y-%m-%d %H:%i:%s')
+  	and protocol_class=#{protocolgroup}
+    group by protocol order by ljs desc limit 10
+  	
+  </select>
+  
+  <!-- 连接数趋势图 -->
+  <select id="selectChart4" parameterType="com.flow.traffic.entity.ProtocolsHour" resultType="hashmap">
+  	select DATE_FORMAT(date,'%Y-%m-%d %H:00:00') as name,protocol as category,Round(sum(links)/10000,2) as value from s_traffic_protocols_hour
+
+  	where protocol in (
+    select protocol from 
+    (select protocol,links as value from s_traffic_protocols_hour
+
+     WHERE date &gt;= DATE_FORMAT(#{startTime},'%Y-%m-%d %H:%i:%s')
+		        AND date &lt;= DATE_FORMAT(#{endTime},'%Y-%m-%d %H:%i:%s') and protocol_class=#{protocolgroup}
+     group by protocol order by value desc limit 10) t)
+  	 and DATE &gt;= DATE_FORMAT(#{startTime},'%Y-%m-%d %H:%i:%s')
+		        AND DATE &lt;= DATE_FORMAT(#{endTime},'%Y-%m-%d %H:%i:%s')
+		        and protocol_class=#{protocolgroup}
+    group by date,protocol
+  </select>
+  
+  <!-- 上行流量趋势图 -->
+  <select id="selectChart5" parameterType="com.flow.traffic.entity.ProtocolsHour" resultType="hashmap">
+    select DATE_FORMAT(date,'%Y-%m-%d %H:00:00') as name,protocol as category,Round(sum(upbytes)/1024/1024/1024,2) as value from s_traffic_protocols_hour
+
+    where protocol in (
+    select protocol from 
+    (select protocol,sum(upbytes) as value from s_traffic_protocols_hour
+
+     WHERE date &gt;= DATE_FORMAT(#{startTime},'%Y-%m-%d %H:%i:%s')
+		        AND date &lt;= DATE_FORMAT(#{endTime},'%Y-%m-%d %H:%i:%s') and protocol_class=#{protocolgroup}
+     group by protocol order by value desc limit 10) t)
+		 and date &gt;= DATE_FORMAT(#{startTime},'%Y-%m-%d %H:%i:%s')
+		        AND date &lt;= DATE_FORMAT(#{endTime},'%Y-%m-%d %H:%i:%s')
+		        and protocol_class=#{protocolgroup}
+     group by protocol,date
+  </select>
+  
+  <!-- 下行流量趋势图 -->
+  <select id="selectChart6" parameterType="com.flow.traffic.entity.ProtocolsHour" resultType="hashmap">
+  	select DATE_FORMAT(date,'%Y-%m-%d %H:00:00') as name,protocol as category,Round(sum(downbytes)/1024/1024/1024,2) as value from s_traffic_protocols_hour
+
+    where protocol in (
+    select protocol from 
+    (select protocol,sum(downbytes) as value from s_traffic_protocols_hour
+
+     WHERE date &gt;= DATE_FORMAT(#{startTime},'%Y-%m-%d %H:%i:%s')
+		        AND date &lt;= DATE_FORMAT(#{endTime},'%Y-%m-%d %H:%i:%s') and protocol_class=#{protocolgroup}
+     group by protocol order by value desc limit 10) t)
+		 and DATE &gt;= DATE_FORMAT(#{startTime},'%Y-%m-%d %H:%i:%s')
+		        AND DATE &lt;= DATE_FORMAT(#{endTime},'%Y-%m-%d %H:%i:%s')
+		        and protocol_class=#{protocolgroup}
+     group by protocol,date
+  </select>
+  
+  <select id="selectMaxGroupName" parameterType="com.flow.traffic.entity.ProtocolsHour" resultType="hashmap">
+  	select protocol_class as protocolgroup ,sum(upbytes+downbytes) as value from s_traffic_protocols_hour
+
+  	WHERE date &gt;= DATE_FORMAT(#{startTime},'%Y-%m-%d %H:%i:%s')
+		        AND date &lt;= DATE_FORMAT(#{endTime},'%Y-%m-%d %H:%i:%s')
+  	group by protocol_class order by value desc limit 1
+  </select>
+  
+
+
+
+</mapper>

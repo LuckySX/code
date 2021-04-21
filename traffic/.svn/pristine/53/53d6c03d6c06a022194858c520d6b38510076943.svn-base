@@ -1,7 +1,0 @@
-export const systemConfig = [
-  {
-    path: '/menuIndex',
-    name: 'menuIndex',
-    component: () => import('@/views/System/MenuIndex.vue')
-  }
-]

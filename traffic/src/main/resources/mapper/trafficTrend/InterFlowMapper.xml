@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.chanct.interFlowMapper">
+    <select id="map" resultType="hashmap" >
+        SELECT
+        dip_county AS name,
+        round(sum(volume) / 1024/1024/1024,2) as value
+
+        FROM
+        s_traffic_map_hour
+        <where>
+        <trim prefixOverrides="  and" suffixOverrides="  and">
+            date &lt;= ADDDATE(CURDATE(), 1) AND date >= CURDATE()
+            <if test="value !=null and value !='' and filed!=null and filed!='' ">
+            <choose>
+                <when test="field =='dip'">
+                    AND inet_ntoa(${filed}) LIKE CONCAT('%',#{value}, '%')
+                </when>
+                <otherwise>
+                    AND ${filed} LIKE CONCAT('%', #{value}, '%')
+                </otherwise>
+            </choose>
+            </if>
+        </trim>
+        </where>
+        group  by dip_county
+    </select>
+
+
+    <select id="worldMap" resultType="hashmap" >
+        SELECT
+        round(SUM(links)/10000,2) AS links,
+        s_area as source,
+        t_area as target,
+        tlongitude as tLongitude,
+        tlatitude as tLatitude,
+        slongitude as sLongitude,
+        slatitude as sLatitude,
+        round(SUM(upbytes+downbytes) /1024/1024/1024,2) as volume
+
+        FROM
+        s_traffic_worldmap_hour where
+                date &lt;= ADDDATE(CURDATE(), 1) AND date >= CURDATE() and area=#{area}
+				GROUP BY s_area,t_area
+    </select>
+
+    <select id="totalInfo" resultType="hashmap">
+        SELECT
+         count(DISTINCT dip) as dip,
+        round(sum(volume) / 1024/1024/1024,2) as volume,
+        max(sip_cnt) as sipCnt,
+        round(sum(app_volume) / 1024/1024/1024,2) as appVolume
+
+        FROM
+        s_traffic_map_hour
+        WHERE
+        date &lt; ADDDATE(CURDATE(), 1)
+        AND date >= CURDATE()
+    </select>
+
+    <select id="userTop" resultType="hashmap">
+        SELECT a.dip,a.dipCounty,CASE
+        WHEN a.sumbytes &lt; 1024 THEN CONCAT(sumbytes, 'B')
+        WHEN a.sumbytes &lt; 1024 * 1024 THEN CONCAT(round(sumbytes / 1024,2), 'KB')
+        WHEN a.sumbytes &lt; 1024 * 1024 * 1024 THEN CONCAT( round(sumbytes / 1024 / 1024,2), 'MB' )
+        WHEN a.sumbytes &lt; 1024 * 1024 * 1024 * 1024 THEN CONCAT(round(sumbytes / 1024 / 1024 / 1024,2), 'G')
+        ELSE CONCAT( round(a.sumbytes / 1024 / 1024 / 1024 / 1024,2), 'T' )
+        END AS sumbytes
+        ,CAST((@i:=@i+1) as SIGNED) as orderNum FROM (
+        SELECT
+        inet_ntoa(ip) AS dip,
+        group_concat(DISTINCT ip_county) as dipCounty,
+        SUM(sumbytes) as sumbytes
+
+        FROM
+        s_traffic_ips_hour
+        WHERE
+        date &lt; ADDDATE(CURDATE(), 1)
+        AND date >= CURDATE()
+        and area=#{area}
+        GROUP BY dip ORDER BY sumbytes DESC LIMIT 0,5
+        )a,(select @i:=0) as it
+    </select>
+
+    <select id="protocolTop" resultType="hashmap">
+        SELECT a.protocol,a.protocolClass,CASE
+        WHEN a.sumbytes &lt; 1024 THEN CONCAT(sumbytes, 'B')
+        WHEN a.sumbytes &lt; 1024 * 1024 THEN CONCAT(round(sumbytes / 1024,2), 'KB')
+        WHEN a.sumbytes &lt; 1024 * 1024 * 1024 THEN CONCAT( round(sumbytes / 1024 / 1024,2), 'MB' )
+        WHEN a.sumbytes &lt; 1024 * 1024 * 1024 * 1024 THEN CONCAT(round(sumbytes / 1024 / 1024 / 1024,2), 'G')
+        ELSE CONCAT( round(a.sumbytes / 1024 / 1024 / 1024 / 1024,2), 'T' )
+        END AS sumbytes
+        ,CAST((@i:=@i+1) as SIGNED) as orderNum FROM (
+        SELECT
+        protocol,
+        group_concat(DISTINCT protocol_class) as protocolClass,
+        SUM(upbytes+downbytes) as sumbytes
+
+        FROM
+        s_traffic_protocols_hour
+        WHERE
+        date &lt; ADDDATE(CURDATE(), 1)
+        AND date >= CURDATE()
+        and area=#{area}
+
+        GROUP BY protocol ORDER BY sumbytes DESC LIMIT 0,5
+        )a,(select @i:=0) as it
+    </select>
+
+</mapper>
